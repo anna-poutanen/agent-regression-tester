@@ -1,0 +1,99 @@
+{
+  "schema_version": 1,
+  "name": "find_refund_policy",
+  "prompt": "Find and read our refund policy.",
+  "fixtures": [
+    {
+      "tool_name": "search_documents",
+      "arguments": {
+        "query": "refund policy"
+      },
+      "response": {
+        "matches": [
+          {
+            "document_id": "policy-7",
+            "title": "Refund policy"
+          }
+        ]
+      },
+      "outcome": "return"
+    },
+    {
+      "tool_name": "read_document",
+      "arguments": {
+        "document_id": "policy-7"
+      },
+      "response": {
+        "document_id": "policy-7",
+        "text": "Refunds are available within 30 days."
+      },
+      "outcome": "return"
+    }
+  ],
+  "recorded_calls": [
+    {
+      "tool_name": "search_documents",
+      "arguments": {
+        "query": "refund policy"
+      },
+      "response": {
+        "matches": [
+          {
+            "document_id": "policy-7",
+            "title": "Refund policy"
+          }
+        ]
+      },
+      "outcome": "return",
+      "tool_call_id": null,
+      "step": 0
+    },
+    {
+      "tool_name": "read_document",
+      "arguments": {
+        "document_id": "policy-7"
+      },
+      "response": {
+        "document_id": "policy-7",
+        "text": "Refunds are available within 30 days."
+      },
+      "outcome": "return",
+      "tool_call_id": null,
+      "step": 1
+    }
+  ],
+  "checks": [
+    {
+      "kind": "required",
+      "tool_name": "search_documents",
+      "arguments": null,
+      "min_calls": 1
+    },
+    {
+      "kind": "required",
+      "tool_name": "read_document",
+      "arguments": null,
+      "min_calls": 1
+    },
+    {
+      "kind": "arguments",
+      "tool_name": "read_document",
+      "path": "document_id",
+      "expected": "policy-7",
+      "operator": "equals",
+      "match_arguments": null
+    },
+    {
+      "kind": "before",
+      "first": "search_documents",
+      "then": "read_document"
+    },
+    {
+      "kind": "max_calls",
+      "tool_name": "read_document",
+      "maximum": 1
+    }
+  ],
+  "reviewed": true,
+  "metadata": {}
+}

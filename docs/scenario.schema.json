@@ -1,0 +1,396 @@
+{
+  "$defs": {
+    "ArgumentCheck": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "arguments",
+          "default": "arguments",
+          "title": "Kind",
+          "type": "string"
+        },
+        "tool_name": {
+          "minLength": 1,
+          "title": "Tool Name",
+          "type": "string"
+        },
+        "path": {
+          "minLength": 1,
+          "title": "Path",
+          "type": "string"
+        },
+        "expected": {
+          "$ref": "#/$defs/JsonValue",
+          "default": null
+        },
+        "operator": {
+          "default": "equals",
+          "enum": [
+            "equals",
+            "not_equals",
+            "contains",
+            "exists"
+          ],
+          "title": "Operator",
+          "type": "string"
+        },
+        "match_arguments": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "$ref": "#/$defs/JsonValue"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Match Arguments"
+        }
+      },
+      "required": [
+        "tool_name",
+        "path"
+      ],
+      "title": "ArgumentCheck",
+      "type": "object"
+    },
+    "BeforeCheck": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "before",
+          "default": "before",
+          "title": "Kind",
+          "type": "string"
+        },
+        "first": {
+          "minLength": 1,
+          "title": "First",
+          "type": "string"
+        },
+        "then": {
+          "minLength": 1,
+          "title": "Then",
+          "type": "string"
+        }
+      },
+      "required": [
+        "first",
+        "then"
+      ],
+      "title": "BeforeCheck",
+      "type": "object"
+    },
+    "ForbiddenCall": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "forbidden",
+          "default": "forbidden",
+          "title": "Kind",
+          "type": "string"
+        },
+        "tool_name": {
+          "minLength": 1,
+          "title": "Tool Name",
+          "type": "string"
+        },
+        "arguments": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "$ref": "#/$defs/JsonValue"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Arguments"
+        }
+      },
+      "required": [
+        "tool_name"
+      ],
+      "title": "ForbiddenCall",
+      "type": "object"
+    },
+    "JsonValue": {},
+    "MaxCalls": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "max_calls",
+          "default": "max_calls",
+          "title": "Kind",
+          "type": "string"
+        },
+        "tool_name": {
+          "minLength": 1,
+          "title": "Tool Name",
+          "type": "string"
+        },
+        "maximum": {
+          "minimum": 0,
+          "title": "Maximum",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "tool_name",
+        "maximum"
+      ],
+      "title": "MaxCalls",
+      "type": "object"
+    },
+    "OutputContains": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "output_contains",
+          "default": "output_contains",
+          "title": "Kind",
+          "type": "string"
+        },
+        "text": {
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "OutputContains",
+      "type": "object"
+    },
+    "RequiredCall": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "required",
+          "default": "required",
+          "title": "Kind",
+          "type": "string"
+        },
+        "tool_name": {
+          "minLength": 1,
+          "title": "Tool Name",
+          "type": "string"
+        },
+        "arguments": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "$ref": "#/$defs/JsonValue"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Arguments"
+        },
+        "min_calls": {
+          "default": 1,
+          "minimum": 1,
+          "title": "Min Calls",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "tool_name"
+      ],
+      "title": "RequiredCall",
+      "type": "object"
+    },
+    "ToolCall": {
+      "additionalProperties": false,
+      "properties": {
+        "tool_name": {
+          "minLength": 1,
+          "title": "Tool Name",
+          "type": "string"
+        },
+        "arguments": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "title": "Arguments",
+          "type": "object"
+        },
+        "response": {
+          "$ref": "#/$defs/JsonValue",
+          "default": null
+        },
+        "outcome": {
+          "default": "return",
+          "enum": [
+            "return",
+            "retry",
+            "error",
+            "blocked",
+            "pending"
+          ],
+          "title": "Outcome",
+          "type": "string"
+        },
+        "tool_call_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tool Call Id"
+        },
+        "step": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Step",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "tool_name",
+        "arguments"
+      ],
+      "title": "ToolCall",
+      "type": "object"
+    },
+    "ToolFixture": {
+      "additionalProperties": false,
+      "properties": {
+        "tool_name": {
+          "minLength": 1,
+          "title": "Tool Name",
+          "type": "string"
+        },
+        "arguments": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "title": "Arguments",
+          "type": "object"
+        },
+        "response": {
+          "$ref": "#/$defs/JsonValue",
+          "default": null
+        },
+        "outcome": {
+          "default": "return",
+          "enum": [
+            "return",
+            "retry"
+          ],
+          "title": "Outcome",
+          "type": "string"
+        }
+      },
+      "required": [
+        "tool_name",
+        "arguments"
+      ],
+      "title": "ToolFixture",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "name": {
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "prompt": {
+      "minLength": 1,
+      "title": "Prompt",
+      "type": "string"
+    },
+    "fixtures": {
+      "items": {
+        "$ref": "#/$defs/ToolFixture"
+      },
+      "title": "Fixtures",
+      "type": "array"
+    },
+    "recorded_calls": {
+      "items": {
+        "$ref": "#/$defs/ToolCall"
+      },
+      "title": "Recorded Calls",
+      "type": "array"
+    },
+    "checks": {
+      "items": {
+        "discriminator": {
+          "mapping": {
+            "arguments": "#/$defs/ArgumentCheck",
+            "before": "#/$defs/BeforeCheck",
+            "forbidden": "#/$defs/ForbiddenCall",
+            "max_calls": "#/$defs/MaxCalls",
+            "output_contains": "#/$defs/OutputContains",
+            "required": "#/$defs/RequiredCall"
+          },
+          "propertyName": "kind"
+        },
+        "oneOf": [
+          {
+            "$ref": "#/$defs/RequiredCall"
+          },
+          {
+            "$ref": "#/$defs/ForbiddenCall"
+          },
+          {
+            "$ref": "#/$defs/ArgumentCheck"
+          },
+          {
+            "$ref": "#/$defs/BeforeCheck"
+          },
+          {
+            "$ref": "#/$defs/MaxCalls"
+          },
+          {
+            "$ref": "#/$defs/OutputContains"
+          }
+        ]
+      },
+      "title": "Checks",
+      "type": "array"
+    },
+    "reviewed": {
+      "default": false,
+      "title": "Reviewed",
+      "type": "boolean"
+    },
+    "metadata": {
+      "additionalProperties": {
+        "$ref": "#/$defs/JsonValue"
+      },
+      "title": "Metadata",
+      "type": "object"
+    }
+  },
+  "required": [
+    "name",
+    "prompt"
+  ],
+  "title": "Scenario",
+  "type": "object"
+}

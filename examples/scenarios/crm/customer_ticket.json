@@ -1,0 +1,95 @@
+{
+  "schema_version": 1,
+  "name": "customer_ticket",
+  "prompt": "Create a Login help ticket for sam@example.test.",
+  "fixtures": [
+    {
+      "tool_name": "lookup_customer",
+      "arguments": {
+        "email": "sam@example.test"
+      },
+      "response": {
+        "customer_id": "cust-42",
+        "email": "sam@example.test"
+      },
+      "outcome": "return"
+    },
+    {
+      "tool_name": "create_ticket",
+      "arguments": {
+        "customer_id": "cust-42",
+        "subject": "Login help"
+      },
+      "response": {
+        "ticket_id": "ticket-1",
+        "customer_id": "cust-42",
+        "subject": "Login help"
+      },
+      "outcome": "return"
+    }
+  ],
+  "recorded_calls": [
+    {
+      "tool_name": "lookup_customer",
+      "arguments": {
+        "email": "sam@example.test"
+      },
+      "response": {
+        "customer_id": "cust-42",
+        "email": "sam@example.test"
+      },
+      "outcome": "return",
+      "tool_call_id": null,
+      "step": 0
+    },
+    {
+      "tool_name": "create_ticket",
+      "arguments": {
+        "customer_id": "cust-42",
+        "subject": "Login help"
+      },
+      "response": {
+        "ticket_id": "ticket-1",
+        "customer_id": "cust-42",
+        "subject": "Login help"
+      },
+      "outcome": "return",
+      "tool_call_id": null,
+      "step": 1
+    }
+  ],
+  "checks": [
+    {
+      "kind": "required",
+      "tool_name": "lookup_customer",
+      "arguments": null,
+      "min_calls": 1
+    },
+    {
+      "kind": "required",
+      "tool_name": "create_ticket",
+      "arguments": null,
+      "min_calls": 1
+    },
+    {
+      "kind": "arguments",
+      "tool_name": "create_ticket",
+      "path": "customer_id",
+      "expected": "cust-42",
+      "operator": "equals",
+      "match_arguments": null
+    },
+    {
+      "kind": "before",
+      "first": "lookup_customer",
+      "then": "create_ticket"
+    },
+    {
+      "kind": "max_calls",
+      "tool_name": "create_ticket",
+      "maximum": 1
+    }
+  ],
+  "reviewed": true,
+  "metadata": {}
+}

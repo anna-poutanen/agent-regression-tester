@@ -1,0 +1,52 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "agent-regression-tester"
+version = "0.1.0"
+description = "Reviewed tool-call regression tests for Pydantic AI agents"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+authors = [{name = "Agent Regression Tester contributors"}]
+dependencies = ["pydantic>=2.12,<3", "pydantic-ai-slim>=2.55,<2.56", "typer>=0.12,<1", "rich>=13,<16"]
+classifiers = ["Development Status :: 3 - Alpha", "Programming Language :: Python :: 3", "Programming Language :: Python :: 3.11", "Programming Language :: Python :: 3.12", "Programming Language :: Python :: 3.13", "Topic :: Software Development :: Testing"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8,<10", "pytest-asyncio>=0.25,<2", "pytest-cov>=6,<8", "ruff>=0.11,<1", "mypy>=1.15,<3", "build>=1.2,<2"]
+openai = ["pydantic-ai-slim[openai]>=2.55,<2.56"]
+anthropic = ["pydantic-ai-slim[anthropic]>=2.55,<2.56"]
+
+[project.scripts]
+agent-regression = "agent_regression.cli:app"
+
+[project.entry-points.pytest11]
+agent_regression = "agent_regression.pytest_plugin"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/agent_regression"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "ASYNC"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+files = ["src/agent_regression"]
+
+[tool.coverage.run]
+source = ["agent_regression"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true

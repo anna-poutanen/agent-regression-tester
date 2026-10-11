@@ -1,0 +1,97 @@
+{
+  "schema_version": 1,
+  "name": "eligible_order",
+  "prompt": "Refund order 456 if it is eligible.",
+  "fixtures": [
+    {
+      "tool_name": "lookup_order",
+      "arguments": {
+        "order_id": "456"
+      },
+      "response": {
+        "order_id": "456",
+        "eligible": true
+      },
+      "outcome": "return"
+    },
+    {
+      "tool_name": "issue_refund",
+      "arguments": {
+        "order_id": "456"
+      },
+      "response": {
+        "order_id": "456",
+        "status": "refunded"
+      },
+      "outcome": "return"
+    }
+  ],
+  "recorded_calls": [
+    {
+      "tool_name": "lookup_order",
+      "arguments": {
+        "order_id": "456"
+      },
+      "response": {
+        "order_id": "456",
+        "eligible": true
+      },
+      "outcome": "return",
+      "tool_call_id": null,
+      "step": 0
+    },
+    {
+      "tool_name": "issue_refund",
+      "arguments": {
+        "order_id": "456"
+      },
+      "response": {
+        "order_id": "456",
+        "status": "refunded"
+      },
+      "outcome": "return",
+      "tool_call_id": null,
+      "step": 1
+    }
+  ],
+  "checks": [
+    {
+      "kind": "required",
+      "tool_name": "lookup_order",
+      "arguments": {
+        "order_id": "456"
+      },
+      "min_calls": 1
+    },
+    {
+      "kind": "required",
+      "tool_name": "issue_refund",
+      "arguments": {
+        "order_id": "456"
+      },
+      "min_calls": 1
+    },
+    {
+      "kind": "arguments",
+      "tool_name": "issue_refund",
+      "path": "order_id",
+      "expected": "456",
+      "operator": "equals",
+      "match_arguments": null
+    },
+    {
+      "kind": "before",
+      "first": "lookup_order",
+      "then": "issue_refund"
+    },
+    {
+      "kind": "max_calls",
+      "tool_name": "issue_refund",
+      "maximum": 1
+    }
+  ],
+  "reviewed": true,
+  "metadata": {
+    "source": "hand-authored offline demo"
+  }
+}

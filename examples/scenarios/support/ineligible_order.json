@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "name": "ineligible_order",
+  "prompt": "Refund order 123 if it is eligible.",
+  "fixtures": [
+    {
+      "tool_name": "lookup_order",
+      "arguments": {
+        "order_id": "123"
+      },
+      "response": {
+        "order_id": "123",
+        "eligible": false
+      },
+      "outcome": "return"
+    },
+    {
+      "tool_name": "issue_refund",
+      "arguments": {
+        "order_id": "123"
+      },
+      "response": {
+        "order_id": "123",
+        "status": "refunded"
+      },
+      "outcome": "return"
+    }
+  ],
+  "recorded_calls": [
+    {
+      "tool_name": "lookup_order",
+      "arguments": {
+        "order_id": "123"
+      },
+      "response": {
+        "order_id": "123",
+        "eligible": false
+      },
+      "outcome": "return",
+      "tool_call_id": null,
+      "step": 0
+    }
+  ],
+  "checks": [
+    {
+      "kind": "required",
+      "tool_name": "lookup_order",
+      "arguments": {
+        "order_id": "123"
+      },
+      "min_calls": 1
+    },
+    {
+      "kind": "arguments",
+      "tool_name": "lookup_order",
+      "path": "order_id",
+      "expected": "123",
+      "operator": "equals",
+      "match_arguments": null
+    },
+    {
+      "kind": "forbidden",
+      "tool_name": "issue_refund",
+      "arguments": null
+    }
+  ],
+  "reviewed": true,
+  "metadata": {
+    "source": "hand-authored offline demo",
+    "policy": "ineligible orders cannot be refunded"
+  }
+}
