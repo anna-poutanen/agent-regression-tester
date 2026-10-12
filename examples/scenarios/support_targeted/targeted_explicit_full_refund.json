@@ -1,0 +1,392 @@
+{
+  "schema_version": 1,
+  "name": "targeted_explicit_full_refund",
+  "prompt": "Please return the entire remaining payment for ORD-1001, if it is eligible.",
+  "fixtures": [
+    {
+      "tool_name": "lookup_order",
+      "arguments": {
+        "order_id": "ORD-1001"
+      },
+      "response": {
+        "status": "found",
+        "order": {
+          "order_id": "ORD-1001",
+          "status": "delivered",
+          "delivered_days_ago": 10,
+          "total_cents": 4999,
+          "refundable_cents": 4999,
+          "currency": "CAD",
+          "item_summary": "Cotton hoodie"
+        },
+        "refund_eligibility": {
+          "eligible": true,
+          "reason_code": "eligible"
+        }
+      },
+      "outcome": "return"
+    },
+    {
+      "tool_name": "issue_refund",
+      "arguments": {
+        "order_id": "ORD-1001",
+        "amount_cents": 4999,
+        "idempotency_key": "req-support-demo"
+      },
+      "response": {
+        "status": "refunded",
+        "order_id": "ORD-1001",
+        "refund_id": "refund-0001",
+        "amount_cents": 4999,
+        "currency": "CAD",
+        "idempotent": false
+      },
+      "outcome": "return"
+    },
+    {
+      "tool_name": "lookup_order",
+      "arguments": {
+        "order_id": "ORD-1001"
+      },
+      "response": {
+        "status": "found",
+        "order": {
+          "order_id": "ORD-1001",
+          "status": "delivered",
+          "delivered_days_ago": 10,
+          "total_cents": 4999,
+          "refundable_cents": 4999,
+          "currency": "CAD",
+          "item_summary": "Cotton hoodie"
+        },
+        "refund_eligibility": {
+          "eligible": true,
+          "reason_code": "eligible"
+        }
+      },
+      "outcome": "return"
+    },
+    {
+      "tool_name": "lookup_order",
+      "arguments": {
+        "order_id": "ORD-1007"
+      },
+      "response": {
+        "status": "found",
+        "order": {
+          "order_id": "ORD-1007",
+          "status": "delivered",
+          "delivered_days_ago": 30,
+          "total_cents": 2500,
+          "refundable_cents": 2500,
+          "currency": "CAD",
+          "item_summary": "Water bottle"
+        },
+        "refund_eligibility": {
+          "eligible": true,
+          "reason_code": "eligible"
+        }
+      },
+      "outcome": "return"
+    },
+    {
+      "tool_name": "lookup_order",
+      "arguments": {
+        "order_id": "ORD-9999"
+      },
+      "response": {
+        "status": "not_found",
+        "order_id": "ORD-9999"
+      },
+      "outcome": "return"
+    },
+    {
+      "tool_name": "lookup_order",
+      "arguments": {
+        "order_id": "9999"
+      },
+      "response": {
+        "status": "not_found",
+        "order_id": "9999"
+      },
+      "outcome": "return"
+    },
+    {
+      "tool_name": "issue_refund",
+      "arguments": {
+        "order_id": "ORD-1001",
+        "amount_cents": 4999,
+        "idempotency_key": "req-support-demo"
+      },
+      "response": {
+        "status": "refunded",
+        "order_id": "ORD-1001",
+        "refund_id": "refund-0001",
+        "amount_cents": 4999,
+        "currency": "CAD",
+        "idempotent": true
+      },
+      "outcome": "return"
+    },
+    {
+      "tool_name": "issue_refund",
+      "arguments": {
+        "order_id": "ORD-1001",
+        "amount_cents": 1000,
+        "idempotency_key": "req-support-demo"
+      },
+      "response": {
+        "status": "denied",
+        "order_id": "ORD-1001",
+        "reason_code": "invalid_amount"
+      },
+      "outcome": "return"
+    },
+    {
+      "tool_name": "issue_refund",
+      "arguments": {
+        "order_id": "ORD-1001",
+        "amount_cents": 2499,
+        "idempotency_key": "req-support-demo"
+      },
+      "response": {
+        "status": "denied",
+        "order_id": "ORD-1001",
+        "reason_code": "invalid_amount"
+      },
+      "outcome": "return"
+    },
+    {
+      "tool_name": "issue_refund",
+      "arguments": {
+        "order_id": "ORD-1001",
+        "amount_cents": 5000,
+        "idempotency_key": "req-support-demo"
+      },
+      "response": {
+        "status": "denied",
+        "order_id": "ORD-1001",
+        "reason_code": "invalid_amount"
+      },
+      "outcome": "return"
+    },
+    {
+      "tool_name": "issue_refund",
+      "arguments": {
+        "order_id": "ORD-1007",
+        "amount_cents": 2500,
+        "idempotency_key": "req-support-demo"
+      },
+      "response": {
+        "status": "refunded",
+        "order_id": "ORD-1007",
+        "refund_id": "refund-0001",
+        "amount_cents": 2500,
+        "currency": "CAD",
+        "idempotent": false
+      },
+      "outcome": "return"
+    },
+    {
+      "tool_name": "issue_refund",
+      "arguments": {
+        "order_id": "ORD-9999",
+        "amount_cents": 4999,
+        "idempotency_key": "req-support-demo"
+      },
+      "response": {
+        "status": "denied",
+        "order_id": "ORD-9999",
+        "reason_code": "not_found"
+      },
+      "outcome": "return"
+    },
+    {
+      "tool_name": "escalate_to_human",
+      "arguments": {
+        "reason": "customer_request",
+        "order_id": "ORD-1001"
+      },
+      "response": {
+        "status": "escalated",
+        "ticket_id": "ticket-0001",
+        "reason": "customer_request",
+        "order_id": "ORD-1001",
+        "idempotent": false
+      },
+      "outcome": "return"
+    },
+    {
+      "tool_name": "escalate_to_human",
+      "arguments": {
+        "reason": "customer_request",
+        "order_id": "ORD-1007"
+      },
+      "response": {
+        "status": "escalated",
+        "ticket_id": "ticket-0001",
+        "reason": "customer_request",
+        "order_id": "ORD-1007",
+        "idempotent": false
+      },
+      "outcome": "return"
+    },
+    {
+      "tool_name": "escalate_to_human",
+      "arguments": {
+        "reason": "customer_request",
+        "order_id": null
+      },
+      "response": {
+        "status": "escalated",
+        "ticket_id": "ticket-0001",
+        "reason": "customer_request",
+        "order_id": null,
+        "idempotent": false
+      },
+      "outcome": "return"
+    }
+  ],
+  "recorded_calls": [
+    {
+      "tool_name": "lookup_order",
+      "arguments": {
+        "order_id": "ORD-1001"
+      },
+      "response": {
+        "status": "found",
+        "order": {
+          "order_id": "ORD-1001",
+          "status": "delivered",
+          "delivered_days_ago": 10,
+          "total_cents": 4999,
+          "refundable_cents": 4999,
+          "currency": "CAD",
+          "item_summary": "Cotton hoodie"
+        },
+        "refund_eligibility": {
+          "eligible": true,
+          "reason_code": "eligible"
+        }
+      },
+      "outcome": "return",
+      "tool_call_id": null,
+      "step": 0
+    },
+    {
+      "tool_name": "issue_refund",
+      "arguments": {
+        "order_id": "ORD-1001",
+        "amount_cents": 4999,
+        "idempotency_key": "req-support-demo"
+      },
+      "response": {
+        "status": "refunded",
+        "order_id": "ORD-1001",
+        "refund_id": "refund-0001",
+        "amount_cents": 4999,
+        "currency": "CAD",
+        "idempotent": false
+      },
+      "outcome": "return",
+      "tool_call_id": null,
+      "step": 1
+    }
+  ],
+  "checks": [
+    {
+      "kind": "required",
+      "tool_name": "lookup_order",
+      "arguments": {
+        "order_id": "ORD-1001"
+      },
+      "min_calls": 1
+    },
+    {
+      "kind": "arguments",
+      "tool_name": "lookup_order",
+      "path": "order_id",
+      "expected": "ORD-1001",
+      "operator": "equals",
+      "match_arguments": null
+    },
+    {
+      "kind": "max_calls",
+      "tool_name": "lookup_order",
+      "maximum": 1
+    },
+    {
+      "kind": "required",
+      "tool_name": "issue_refund",
+      "arguments": {
+        "order_id": "ORD-1001",
+        "amount_cents": 4999,
+        "idempotency_key": "req-support-demo"
+      },
+      "min_calls": 1
+    },
+    {
+      "kind": "arguments",
+      "tool_name": "issue_refund",
+      "path": "order_id",
+      "expected": "ORD-1001",
+      "operator": "equals",
+      "match_arguments": null
+    },
+    {
+      "kind": "arguments",
+      "tool_name": "issue_refund",
+      "path": "amount_cents",
+      "expected": 4999,
+      "operator": "equals",
+      "match_arguments": null
+    },
+    {
+      "kind": "arguments",
+      "tool_name": "issue_refund",
+      "path": "idempotency_key",
+      "expected": "req-support-demo",
+      "operator": "equals",
+      "match_arguments": null
+    },
+    {
+      "kind": "before",
+      "first": "lookup_order",
+      "then": "issue_refund"
+    },
+    {
+      "kind": "max_calls",
+      "tool_name": "issue_refund",
+      "maximum": 1
+    },
+    {
+      "kind": "forbidden",
+      "tool_name": "escalate_to_human",
+      "arguments": null
+    }
+  ],
+  "reviewed": true,
+  "metadata": {
+    "provenance": "synthetic_hand_authored",
+    "fixture_provenance": "saved_harmless_local_backend_responses",
+    "purpose": "targeted_development_regression",
+    "posthoc": true,
+    "policy_version": "support-v1",
+    "reference_date": "2026-10-11",
+    "authenticated_customer_id": "cust-001",
+    "request_id": "req-support-demo",
+    "category": "explicit_full_refund_control",
+    "expected_outcome": "look up the confirmed order, then issue exactly one full 4999-cent refund",
+    "review_basis": "full remaining refunds require explicit consent and a confirmed order",
+    "continuation_fixtures": 13,
+    "continuation_fixture_groups": {
+      "lookup_order": 4,
+      "issue_refund": 6,
+      "escalate_to_human": 3
+    },
+    "optional_lookup_id": null,
+    "optional_lookup_matching": "exact saved arguments; wrong IDs fail replay",
+    "clarification_grading": "question mark only; helpfulness is not semantically graded",
+    "evaluation_scope": "development regressions added after model failures, not a benchmark"
+  }
+}

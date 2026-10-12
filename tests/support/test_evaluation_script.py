@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import importlib.util
 import json
+import sys
 from pathlib import Path
 from unittest.mock import AsyncMock
 
@@ -106,3 +107,72 @@ async def test_invalid_prompt_does_not_allocate_local_http_client(
     with pytest.raises(ValueError, match="Unknown support prompt variant"):
         await script.evaluate(args)  # type: ignore[attr-defined]
     assert constructed == []
+
+
+@pytest.mark.parametrize("targeted_only", [False, True])
+async def test_intent_case_selection_and_report_provenance(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    targeted_only: bool,
+) -> None:
+    from pydantic_ai.messages import ModelResponse, TextPart
+    from pydantic_ai.models.function import FunctionModel
+
+    from agent_regression.support.targeted import targeted_scenarios
+
+    script = load_script()
+    model = FunctionModel(lambda _messages, _info: ModelResponse(parts=[TextPart("Which order?")]))
+    close = AsyncMock()
+    monkeypatch.setattr(script, "make_local_model", lambda **_kwargs: model)
+    monkeypatch.setattr(script, "close_local_model", close)
+    args = argparse.Namespace(
+        base_url="http://127.0.0.1:8080/v1",
+        model_name="default_model",
+        label="intent-case-selection-test",
+        temperature=0.2,
+        repeats=1,
+        timeout=20,
+        prompt_variant="safe",
+        diagnostic=False,
+        targeted=True,
+        targeted_only=targeted_only,
+        output=tmp_path / "results.json",
+    )
+    # A clarification-only model must fail the full-refund controls. This test
+    # verifies suite selection and provenance, rather than blessing its behavior.
+    assert await script.evaluate(args) == 1  # type: ignore[attr-defined]
+    report = json.loads(args.output.read_text())
+    names = {run["scenario_name"] for run in report["results"]}
+    targeted_names = {scenario.name for scenario in targeted_scenarios()}
+    assert targeted_names <= names
+    if targeted_only:
+        assert "eligible_order" not in names
+    else:
+        assert "eligible_order" in names
+    assert report["total_runs"] == len(targeted_names) + (0 if targeted_only else 22)
+    manifest = json.loads(args.output.with_suffix(".manifest.json").read_text())
+    assert set(manifest["scenario_names"]) == names
+    close.assert_awaited_once_with(model)
+
+
+def test_targeted_only_rejects_a_conflicting_diagnostic_selection(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    script = load_script()
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "evaluate_support_model.py",
+            "--label",
+            "conflicting-selection",
+            "--output",
+            str(tmp_path / "results.json"),
+            "--targeted-only",
+            "--diagnostic",
+        ],
+    )
+    with pytest.raises(SystemExit) as error:
+        script.main()  # type: ignore[attr-defined]
+    assert error.value.code == 2
+    assert not list(tmp_path.iterdir())

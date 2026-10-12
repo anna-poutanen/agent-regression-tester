@@ -21,8 +21,10 @@ from pydantic_ai.models.function import FunctionModel
 
 from agent_regression.support.agent import make_support_agent
 from agent_regression.support.evaluation import diagnostic_scenarios
+from agent_regression.support.prompt import SAFE_INSTRUCTIONS
 from agent_regression.support.scenarios import support_scenarios
 from agent_regression.support.store import LocalSupportStore, SupportSession
+from agent_regression.support.targeted import targeted_scenarios
 from agent_regression.support.training import CATEGORIES, TrainingCorpus, generate_training_data
 
 
@@ -35,16 +37,100 @@ def _order_ids(value: Any) -> set[str]:
     return {match.upper() for match in re.findall(r"ORD-\d{4}", json.dumps(value), re.I)}
 
 
+def _split_order_ids(conversations: list[dict[str, Any]]) -> set[str]:
+    """Exclude only the exact shared policy prefix from system messages.
+
+    Request-specific context, all other message roles, and case metadata remain
+    part of the split audit. Evaluation leakage still uses the untouched scan.
+    """
+    reviewed = deepcopy(conversations)
+    for conversation in reviewed:
+        for field in ("messages", "trajectory"):
+            for message in conversation.get(field, []):
+                content = message.get("content")
+                if (
+                    message.get("role") == "system"
+                    and isinstance(content, str)
+                    and content.startswith(SAFE_INSTRUCTIONS)
+                ):
+                    message["content"] = content[len(SAFE_INSTRUCTIONS) :]
+    return _order_ids(reviewed)
+
+
+@pytest.mark.parametrize("field", ["messages", "trajectory"])
+def test_split_scan_excludes_shared_policy_without_changing_raw_data(field: str) -> None:
+    conversations = [
+        {
+            field: [
+                {"role": "system", "content": SAFE_INSTRUCTIONS + "\nTrusted request ID: train-1"}
+            ]
+        }
+    ]
+    original = deepcopy(conversations)
+    assert _order_ids(conversations) == _order_ids(SAFE_INSTRUCTIONS)
+    assert _split_order_ids(conversations) == set()
+    assert conversations == original
+    assert _order_ids(conversations) == _order_ids(SAFE_INSTRUCTIONS)
+
+
+@pytest.mark.parametrize(
+    "location", ["user", "action", "tool_return", "system_suffix", "case_metadata", "nested_action"]
+)
+def test_split_scan_keeps_policy_example_id_when_it_becomes_conversation_data(
+    location: str,
+) -> None:
+    system = {"role": "system", "content": SAFE_INSTRUCTIONS + "\nTrusted request ID: train-1"}
+    conversation: dict[str, Any] = {"messages": [system]}
+    example = "ORD-8426"
+    if location == "user":
+        # Even an exact copy of the policy in user text is conversation data.
+        conversation["messages"].append(
+            {"role": "user", "content": SAFE_INSTRUCTIONS + f"\nRefund {example}."}
+        )
+    elif location in {"action", "nested_action"}:
+        arguments: dict[str, Any] = {"order_id": example}
+        if location == "nested_action":
+            arguments = {"note": {"role": "system", "content": SAFE_INSTRUCTIONS}, **arguments}
+        conversation["messages"].append(
+            {
+                "role": "assistant",
+                "tool_calls": [{"function": {"name": "lookup_order", "arguments": arguments}}],
+            }
+        )
+    elif location == "tool_return":
+        conversation["messages"].append(
+            {"role": "tool", "content": json.dumps({"order_id": example})}
+        )
+    elif location == "system_suffix":
+        system["content"] += f"\nTrusted chosen order: {example}"
+    else:
+        conversation["case_id"] = example
+        conversation["seed"] = {"orders": [{"order_id": example}]}
+    original = deepcopy(conversation)
+    first_ids = _split_order_ids([conversation])
+    second_ids = _split_order_ids([deepcopy(conversation)])
+    assert first_ids & second_ids == {example}
+    assert conversation == original
+
+
+@pytest.mark.parametrize("prefix", ["Additional context\n", " "])
+def test_split_scan_does_not_strip_a_policy_copy_outside_the_exact_system_prefix(
+    prefix: str,
+) -> None:
+    conversations = [{"messages": [{"role": "system", "content": prefix + SAFE_INSTRUCTIONS}]}]
+    assert _split_order_ids(conversations) == _order_ids(conversations)
+
+
 def _deidentified_wording(prompt: str) -> str:
     without_identifiers = re.sub(r"ORD-\d{4}", "ORDER", prompt, flags=re.I)
     without_amounts = re.sub(r"\b\d+\b", "NUMBER", without_identifiers)
     return " ".join(without_amounts.lower().split())
 
 
-def test_no_canonical_or_diagnostic_evaluation_data_is_in_training(
+def test_no_reviewed_evaluation_suite_data_is_in_training(
     corpus: TrainingCorpus,
 ) -> None:
-    evaluations = [*support_scenarios(), *diagnostic_scenarios()]
+    evaluations = [*support_scenarios(), *diagnostic_scenarios(), *targeted_scenarios()]
     reserved_ids = set().union(*(_order_ids(s.model_dump()) for s in evaluations))
     reserved_prompts = {s.prompt for s in evaluations}
     for split, records in corpus.records.items():
@@ -64,7 +150,7 @@ def test_split_independence_covers_conversations_not_only_manifest_labels(
     split_wordings: dict[str, set[str]] = {}
     for split, records in corpus.records.items():
         cases = [case for case in corpus.cases if case["split"] == split]
-        split_ids[split] = _order_ids(records) | _order_ids(cases)
+        split_ids[split] = _split_order_ids(records) | _split_order_ids(cases)
         split_keys[split] = {case["request_id"] for case in cases}
         split_templates[split] = {case["template_id"] for case in cases}
         split_wordings[split] = {_deidentified_wording(case["prompt"]) for case in cases}
@@ -250,6 +336,8 @@ async def test_native_training_prefix_matches_actual_openai_mapping(
     # This optional integration check maps requests without calling any provider.
     # Tokenizer-specific equality is checked separately using local model files.
     pytest.importorskip("openai")
+    from pydantic_ai.models.openai import OpenAIChatModel
+
     from agent_regression.support.local_model import close_local_model, make_local_model
 
     case = next(
@@ -283,6 +371,7 @@ async def test_native_training_prefix_matches_actual_openai_mapping(
     assert session.store.snapshot() == case["ledgers"]
     model = make_local_model()
     try:
+        assert isinstance(model, OpenAIChatModel)
         for (messages, info), record_index in zip(captured, case["record_indexes"], strict=True):
             record = corpus.records["train"][record_index]
             settings, parameters = model.prepare_request(

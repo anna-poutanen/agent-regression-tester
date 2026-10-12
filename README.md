@@ -46,6 +46,10 @@ agent-regression support demo --mutation refund_ineligible --scenario outside_wi
 
 # A duplicate attempt fails even though backend idempotency prevents double payment.
 agent-regression support demo --mutation duplicate_refund --scenario duplicate_wording
+
+# Reviewed partial-consent and unclear-order cases, plus valid full-refund controls.
+agent-regression run examples/scenarios/support_targeted \
+  --agent agent_regression.support:make_support_agent --repeats 3
 ```
 
 The backend checks customer ownership, completed lookup, eligibility, exact integer amounts and request keys independently of the prompt. The agent must also understand whether the customer authorized a refund or needs clarification. Safe and broken conversations expose their actual calls and local ledgers; `support chat --json --record reports/conversation.json` saves an unreviewed trace.
@@ -54,10 +58,13 @@ See the [support guide](docs/support/README.md), [synthetic dataset card](docs/s
 
 The optional model experiment performed actual local LoRA training on separate
 synthetic expert decisions. It also exposed a training regression: an adapter
-stopped making refunds despite lower token loss. A calibrated adapter restores
-some refunds but still fails 29 of 102 development runs. The offline demo is
-deterministic; these real-model failures are preserved rather than hidden by its
-passing tests.
+stopped making refunds despite lower token loss. In the earlier experiment,
+calibration restored some refunds but still failed 29 of 102 development runs.
+The current authorization policy and [14 targeted cases](docs/support/TARGETED.md)
+distinguish partial consent and uncertain order references from valid full-refund
+requests. The [evaluation evidence](docs/support/EVALUATION.md) preserves measured
+before/after results and rejected prompt revisions. Offline demos are deterministic;
+their passing results do not establish real-model reliability.
 
 ## Record → review → replay
 
@@ -180,7 +187,7 @@ agent-regression run examples/scenarios/crm \
   --agent agent_regression.demo:make_crm_agent
 ```
 
-The prepared [GitHub Actions workflow](.github/workflows/ci.yml) tests Python 3.11–3.13 and runs the support scenarios on pull requests. It has not been run on GitHub. To use the tester in another project, install this package, add reviewed scenarios, and run `agent-regression run ... --agent your_module:make_agent --junit-report reports/regressions.xml` in that project's CI. Live-model runs require explicitly configured credentials and may incur provider costs.
+The [GitHub Actions workflow](.github/workflows/ci.yml) tests Python 3.11–3.13 and runs the support scenarios on pull requests and pushes to main. Its [run history](https://github.com/anna-poutanen/agent-regression-tester/actions) records remote results. To use the tester in another project, install this package, add reviewed scenarios, and run `agent-regression run ... --agent your_module:make_agent --junit-report reports/regressions.xml` in that project's CI. Live-model runs require explicitly configured credentials and may incur provider costs.
 
 ## Development and current limits
 

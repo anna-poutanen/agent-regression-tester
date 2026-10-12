@@ -24,9 +24,15 @@ from agent_regression.support.training import training_tool_definitions
 
 
 async def evaluate(arguments: argparse.Namespace) -> int:
-    scenarios = support_scenarios()
-    if arguments.diagnostic:
+    targeted_only = getattr(arguments, "targeted_only", False)
+    include_targeted = getattr(arguments, "targeted", False) or targeted_only
+    scenarios = [] if targeted_only else support_scenarios()
+    if arguments.diagnostic and not targeted_only:
         scenarios += diagnostic_scenarios()
+    if include_targeted:
+        from agent_regression.support.targeted import targeted_scenarios
+
+        scenarios += targeted_scenarios()
     agent_source = await asyncio.to_thread(Path(support_agent_module.__file__).read_bytes)
     tools = training_tool_definitions()
     manifest = {
@@ -105,7 +111,15 @@ def main() -> None:
     parser.add_argument("--timeout", type=float, default=120)
     parser.add_argument("--prompt-variant", default="safe")
     parser.add_argument("--diagnostic", action="store_true", help="Add 12 new diagnostic wordings")
+    parser.add_argument(
+        "--targeted", action="store_true", help="Add reviewed partial-refund and ambiguity cases"
+    )
+    parser.add_argument(
+        "--targeted-only", action="store_true", help="Run only the reviewed intent cases"
+    )
     arguments = parser.parse_args()
+    if arguments.targeted_only and arguments.diagnostic:
+        parser.error("--targeted-only cannot be combined with --diagnostic")
     if arguments.repeats < 1 or arguments.timeout <= 0:
         parser.error("Repeats and timeout must be positive")
     if arguments.output.suffix != ".json":

@@ -1,3 +1,56 @@
+# Local build status — October 12, 2026
+
+## Partial-refund and ambiguity follow-up
+
+The current prompt distinguishes a confirmed order from consent to a full refund.
+Fourteen new reviewed development scenarios cover partial amounts, percentages,
+uncertain or competing references, and two valid full-refund controls. Original
+34-case expectations and the new 14-case suite remain frozen. A separate answer
+regression catches a clarification that asks for an already supplied order ID.
+Replay keeps business tools mocked; direct validation uses harmless fresh stores.
+The evaluator can select targeted cases and records prompt, schema and scenario
+hashes. The optional local model receives the request directly, without the
+offline intent parser routing or hiding its tool calls.
+
+The deterministic demo also now handles explicit waits and negated human or
+exception requests. These bounded parser fixes apply only to the offline test
+double. They are tested separately from real inference.
+
+Fresh calibrated-model baseline and prompt/model candidate results are documented
+in [support evaluation evidence](support/EVALUATION.md). Prompt candidates are
+rejected when they hide valid actions or leave the original partial-amount failure
+unfixed. These are synthetic development measurements after prompt selection;
+they do not establish production reliability or comprehensive answer correctness.
+
+No model weights or training files changed during this follow-up. Fresh corpus
+exports are versioned native-v3 and hash the revised instructions; the completed
+native-v2 training corpus and adapter remain preserved locally. Training has not
+been rerun for these prompt changes.
+
+Current source validation on macOS:
+
+- Python 3.13.2 and 3.11.14 core environments: **844 passed, 7 optional checks skipped**
+  on each version.
+- Python 3.13.2 model environment: **851 passed**, including optional transport and
+  local-tokenizer tests. Unit tests block live provider calls.
+- **96%** combined statement/branch coverage, including plugin startup.
+- Ruff lint and formatting pass for **71 Python files**; strict mypy passes for
+  **23 source modules**.
+- Offline policy replay: **66/66** original and **42/42** targeted runs pass.
+- Published-source scan excludes credentials, weights, generated corpora, raw
+  reports, virtual environments and build artifacts.
+
+The private source repository is
+[anna-poutanen/agent-regression-tester](https://github.com/anna-poutanen/agent-regression-tester).
+Its [CI workflow](../.github/workflows/ci.yml) runs offline tests on Python
+3.11–3.13, builds packages and exercises reviewed examples. Live model inference
+and training remain opt-in local experiments.
+
+The October 11 milestone below is retained as measured history; its counts and
+unrun-CI statements describe that snapshot.
+
+---
+
 # Local build status — October 11, 2026
 
 ## Realistic support milestone

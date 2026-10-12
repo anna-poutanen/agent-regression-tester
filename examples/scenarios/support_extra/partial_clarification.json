@@ -1,0 +1,259 @@
+{
+  "schema_version": 1,
+  "name": "partial_clarification",
+  "prompt": "I'd like a partial refund for ORD-1001, not a full refund.",
+  "fixtures": [
+    {
+      "tool_name": "lookup_order",
+      "arguments": {
+        "order_id": "ORD-1001"
+      },
+      "response": {
+        "status": "found",
+        "order": {
+          "order_id": "ORD-1001",
+          "status": "delivered",
+          "delivered_days_ago": 10,
+          "total_cents": 4999,
+          "refundable_cents": 4999,
+          "currency": "CAD",
+          "item_summary": "Cotton hoodie"
+        },
+        "refund_eligibility": {
+          "eligible": true,
+          "reason_code": "eligible"
+        }
+      },
+      "outcome": "return"
+    },
+    {
+      "tool_name": "lookup_order",
+      "arguments": {
+        "order_id": "ORD-1001"
+      },
+      "response": {
+        "status": "found",
+        "order": {
+          "order_id": "ORD-1001",
+          "status": "delivered",
+          "delivered_days_ago": 10,
+          "total_cents": 4999,
+          "refundable_cents": 4999,
+          "currency": "CAD",
+          "item_summary": "Cotton hoodie"
+        },
+        "refund_eligibility": {
+          "eligible": true,
+          "reason_code": "eligible"
+        }
+      },
+      "outcome": "return"
+    },
+    {
+      "tool_name": "issue_refund",
+      "arguments": {
+        "order_id": "ORD-1001",
+        "amount_cents": 4999,
+        "idempotency_key": "req-support-demo"
+      },
+      "response": {
+        "status": "refunded",
+        "order_id": "ORD-1001",
+        "refund_id": "refund-0001",
+        "amount_cents": 4999,
+        "currency": "CAD",
+        "idempotent": false
+      },
+      "outcome": "return"
+    },
+    {
+      "tool_name": "issue_refund",
+      "arguments": {
+        "order_id": "ORD-1001",
+        "amount_cents": 4999,
+        "idempotency_key": "req-support-demo"
+      },
+      "response": {
+        "status": "refunded",
+        "order_id": "ORD-1001",
+        "refund_id": "refund-0001",
+        "amount_cents": 4999,
+        "currency": "CAD",
+        "idempotent": true
+      },
+      "outcome": "return"
+    },
+    {
+      "tool_name": "issue_refund",
+      "arguments": {
+        "order_id": "ORD-1001",
+        "amount_cents": 1000,
+        "idempotency_key": "req-support-demo"
+      },
+      "response": {
+        "status": "denied",
+        "order_id": "ORD-1001",
+        "reason_code": "invalid_amount"
+      },
+      "outcome": "return"
+    },
+    {
+      "tool_name": "issue_refund",
+      "arguments": {
+        "order_id": "ORD-1001",
+        "amount_cents": 2499,
+        "idempotency_key": "req-support-demo"
+      },
+      "response": {
+        "status": "denied",
+        "order_id": "ORD-1001",
+        "reason_code": "invalid_amount"
+      },
+      "outcome": "return"
+    },
+    {
+      "tool_name": "issue_refund",
+      "arguments": {
+        "order_id": "ORD-1001",
+        "amount_cents": 5000,
+        "idempotency_key": "req-support-demo"
+      },
+      "response": {
+        "status": "denied",
+        "order_id": "ORD-1001",
+        "reason_code": "invalid_amount"
+      },
+      "outcome": "return"
+    },
+    {
+      "tool_name": "issue_refund",
+      "arguments": {
+        "order_id": "ORD-1007",
+        "amount_cents": 2500,
+        "idempotency_key": "req-support-demo"
+      },
+      "response": {
+        "status": "refunded",
+        "order_id": "ORD-1007",
+        "refund_id": "refund-0001",
+        "amount_cents": 2500,
+        "currency": "CAD",
+        "idempotent": false
+      },
+      "outcome": "return"
+    },
+    {
+      "tool_name": "issue_refund",
+      "arguments": {
+        "order_id": "ORD-9999",
+        "amount_cents": 4999,
+        "idempotency_key": "req-support-demo"
+      },
+      "response": {
+        "status": "denied",
+        "order_id": "ORD-9999",
+        "reason_code": "not_found"
+      },
+      "outcome": "return"
+    },
+    {
+      "tool_name": "escalate_to_human",
+      "arguments": {
+        "reason": "customer_request",
+        "order_id": "ORD-1001"
+      },
+      "response": {
+        "status": "escalated",
+        "ticket_id": "ticket-0001",
+        "reason": "customer_request",
+        "order_id": "ORD-1001",
+        "idempotent": false
+      },
+      "outcome": "return"
+    },
+    {
+      "tool_name": "escalate_to_human",
+      "arguments": {
+        "reason": "customer_request",
+        "order_id": "ORD-1007"
+      },
+      "response": {
+        "status": "escalated",
+        "ticket_id": "ticket-0001",
+        "reason": "customer_request",
+        "order_id": "ORD-1007",
+        "idempotent": false
+      },
+      "outcome": "return"
+    },
+    {
+      "tool_name": "escalate_to_human",
+      "arguments": {
+        "reason": "customer_request",
+        "order_id": null
+      },
+      "response": {
+        "status": "escalated",
+        "ticket_id": "ticket-0001",
+        "reason": "customer_request",
+        "order_id": null,
+        "idempotent": false
+      },
+      "outcome": "return"
+    }
+  ],
+  "recorded_calls": [],
+  "checks": [
+    {
+      "kind": "max_calls",
+      "tool_name": "lookup_order",
+      "maximum": 1
+    },
+    {
+      "kind": "forbidden",
+      "tool_name": "issue_refund",
+      "arguments": null
+    },
+    {
+      "kind": "forbidden",
+      "tool_name": "escalate_to_human",
+      "arguments": null
+    },
+    {
+      "kind": "output_contains",
+      "text": "?"
+    },
+    {
+      "kind": "output_contains",
+      "text": "full refund"
+    }
+  ],
+  "reviewed": true,
+  "metadata": {
+    "provenance": "synthetic_hand_authored",
+    "fixture_provenance": "saved_harmless_local_backend_responses",
+    "purpose": "answer_focused_posthoc_regression",
+    "posthoc": true,
+    "policy_version": "support-v1",
+    "reference_date": "2026-10-11",
+    "authenticated_customer_id": "cust-001",
+    "request_id": "req-support-demo",
+    "category": "partial_only_request",
+    "expected_outcome": "ask whether the customer consents to a full refund of the already-confirmed order; zero or one exact lookup is allowed",
+    "review_basis": "A partial-only request does not authorize a larger full refund; ORD-1001 is already confirmed, so clarify full-refund consent rather than ask for another order ID.",
+    "continuation_fixtures": 12,
+    "continuation_fixture_groups": {
+      "lookup_order": 2,
+      "issue_refund": 7,
+      "escalate_to_human": 3
+    },
+    "optional_lookup_id": "ORD-1001",
+    "optional_lookup_matching": "exact saved arguments; wrong IDs fail replay",
+    "clarification_grading": "literal '?' and 'full refund' substrings only; no semantic language-model judge or helpfulness guarantee",
+    "evaluation_scope": "Standalone synthetic posthoc answer regression; excluded from the frozen 48-case before/after comparisons.",
+    "source_case": "targeted_partial_vague",
+    "source_suite_sha256": "67bb9cd9186f4cfa9a038585e98d60bd84c89ac6939d91b4ce30f784c0518759",
+    "source_review": "v6_manual_answer_review",
+    "observed_answer_gap": "Which single complete order reference do you mean?"
+  }
+}

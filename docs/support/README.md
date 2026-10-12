@@ -49,11 +49,27 @@ The [dataset](DATASET.md) contains 22 reviewed scenarios: eligible and ineligibl
 
 During replay, saved responses replace all business tools; none of the store methods execute. A model still performs real inference if `--base-url` is supplied. During `support chat`, the actual local store methods run. Integration tests verify both execution boundaries.
 
-The separately reviewed posthoc example below preserves a partial-only refund failure found during calibration validation. It requires a clarification question and forbids refunds and escalation, while permitting at most one lookup. Its saved full-refund response lets an erroneous attempt finish and fail the forbidden-action check. The local calibrated model failed all three repeated replays of this reviewed case. It is outside the frozen evaluation dataset and its historical scores.
+The separately reviewed posthoc example below preserves a partial-only refund failure found during calibration validation. It requires a clarification question and forbids refunds and escalation, while permitting at most one lookup. Its saved full-refund response lets an erroneous attempt finish and fail the forbidden-action check. The calibrated model's three failures in three replays are historical evidence from before the authorization-prompt fix, not a measurement of the current prompt. This case is outside the frozen evaluation dataset and its historical scores.
 
 ```sh
 agent-regression run examples/scenarios/support_extra/partial_amount.json \
   --agent agent_regression.support:make_support_agent
+```
+
+The [14 targeted authorization regressions](TARGETED.md) expand this coverage to six partial-only requests, six ambiguous references and two full-refund controls. Run all 42 offline replays with:
+
+```sh
+agent-regression run examples/scenarios/support_targeted \
+  --agent agent_regression.support:make_support_agent --repeats 3
+```
+
+For real inference, the local evaluation script accepts `--targeted-only` or `--targeted`; the targeted guide includes commands with fresh report paths and explains the grading limits.
+
+Manual review of the V6 prompt exposed a separate answer gap: it asked for an order ID already supplied by the customer, satisfying the question-mark check without asking for full-refund consent. The reviewed [partial clarification case](../../examples/scenarios/support_extra/partial_clarification.json) adds a literal `full refund` requirement, permits zero or one exact lookup and still forbids refund and escalation. It stays outside the frozen 48-case comparisons; substring checks do not semantically grade the answer.
+
+```sh
+agent-regression run examples/scenarios/support_extra/partial_clarification.json \
+  --agent agent_regression.support:make_support_agent --repeats 3
 ```
 
 ## Demonstrate broken behavior

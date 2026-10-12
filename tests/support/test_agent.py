@@ -256,7 +256,7 @@ def test_supplied_model_is_preserved_and_receives_policy_context_and_tools() -> 
     assert agent.run_sync("Hello.").output == "A response from the supplied model."
     info = observed[0]
     assert "Trusted request ID: custom-id" in str(info.instructions)
-    assert "Never substitute or guess" in str(info.instructions)
+    assert str(info.instructions).startswith(SAFE_INSTRUCTIONS)
     definitions = {tool.name: tool.parameters_json_schema for tool in info.function_tools}
     assert set(definitions) == {"lookup_order", "issue_refund", "escalate_to_human"}
     assert set(definitions["lookup_order"]["properties"]) == {"order_id"}
@@ -390,6 +390,7 @@ def test_duplicate_mutation_is_visible_but_backend_charges_once() -> None:
     ]
     assert len(session.store.refunds) == 1
     refund_returns = [part.content for part in returns(result) if part.tool_name == "issue_refund"]
+    assert isinstance(refund_returns[0], dict) and isinstance(refund_returns[1], dict)
     assert refund_returns[0]["idempotent"] is False
     assert refund_returns[1]["idempotent"] is True
 

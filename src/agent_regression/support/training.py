@@ -10,6 +10,7 @@ customer data or evidence of general language-model capability.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import random
 from collections import Counter
@@ -31,7 +32,7 @@ from .store import REFERENCE_DATE, LocalSupportStore, SupportSession
 
 Split = Literal["train", "valid", "test"]
 DEFAULT_SEED = 20261011
-CORPUS_VERSION = "synthetic-support-lora-native-v2"
+CORPUS_VERSION = "synthetic-support-lora-native-v3"
 
 # Four training templates per intent; two independent greetings give eight
 # complete training wordings. Validation/test use their own entire templates.
@@ -580,6 +581,7 @@ def generate_training_data(*, seed: int = DEFAULT_SEED) -> TrainingCorpus:
                     ordinal += 1
     manifest = {
         "corpus_version": CORPUS_VERSION,
+        "instructions_sha256": hashlib.sha256(SAFE_INSTRUCTIONS.encode()).hexdigest(),
         "provenance": "synthetic_hand_authored_expert_policy_and_local_backend",
         "purpose": "local_lora_training_experiment",
         "generator_seed": seed,

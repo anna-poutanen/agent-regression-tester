@@ -109,6 +109,71 @@ and supplies a fixed dummy key for local protocol compatibility. It does not
 read an environment API key. Requests made with this helper go to the explicit
 local server.
 
+## Evaluate the separate 8B capacity candidate
+
+The larger checkpoint is a candidate pending evaluation. It uses the public
+[MLX-community Qwen3-8B 4-bit model](https://huggingface.co/mlx-community/Qwen3-8B-4bit/tree/545dc4251c05440727734bcd94334791f6ab0192)
+at revision `545dc4251c05440727734bcd94334791f6ab0192`, with Apache 2.0 licensing
+and 4,623,784,971 repository bytes. Its pretraining was performed upstream; this
+capacity probe does not train an 8B model or adapter. The download uses a separate
+ignored directory and its local provenance manifest is
+`reports/support-qwen3-8b-download.json`.
+
+Download the pinned revision without an account token:
+
+```sh
+.venv-model/bin/python - <<'PY'
+from huggingface_hub import snapshot_download
+
+snapshot_download(
+    repo_id="mlx-community/Qwen3-8B-4bit",
+    revision="545dc4251c05440727734bcd94334791f6ab0192",
+    local_dir=".models/qwen3-8b-4bit",
+    token=False,
+)
+PY
+```
+
+Stop the existing foreground server before starting this one on the same port:
+
+```sh
+HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 \
+  .venv-model/bin/python -m mlx_lm server \
+  --model .models/qwen3-8b-4bit \
+  --host 127.0.0.1 --port 8080 \
+  --max-tokens 1024 --temp 0.2 \
+  --decode-concurrency 1 --prompt-concurrency 1 \
+  --prompt-cache-size 8 \
+  --chat-template-args '{"enable_thinking":false}'
+```
+
+This server uses the 8B checkpoint directly, without a 4B adapter. The client
+still uses `default_model` and the same loopback URL. The comparison holds the
+reviewed scenarios, agent code and frozen V13 policy constant
+(`0fab47536f46ae6426253cd2317cf3ab842090063326241325b4db76d0ce6070`).
+Checkpoint size and native thinking-template mode change together, so the result
+cannot isolate parameter count as the sole cause. Relative to the calibrated
+4B V13 runs, removing the adapter is also a change. Relative to the earlier
+calibrated baseline, the V13 instructions change as well. The earlier 4B weights,
+adapters and native-v2 training files remain preserved; this round performs no
+additional training.
+
+Use fresh report paths for the two development suites:
+
+```sh
+.venv-model/bin/python scripts/evaluate_support_model.py \
+  --label qwen3-8b-capacity --targeted-only --repeats 5 \
+  --output reports/support-8b-targeted-new.json
+
+.venv-model/bin/python scripts/evaluate_support_model.py \
+  --label qwen3-8b-capacity --diagnostic --repeats 3 \
+  --output reports/support-8b-original-new.json
+```
+
+These commands test 70 targeted runs and 102 original/diagnostic runs,
+respectively. Read [EVALUATION.md](EVALUATION.md) for measured results and any
+remaining valid-action failures before choosing a model for the demonstration.
+
 ## Run actual local tools
 
 In another terminal, ask for an eligible refund:

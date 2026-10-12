@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 from pathlib import Path
@@ -11,7 +12,9 @@ from pydantic_ai.messages import ToolReturnPart
 from pydantic_ai.models.function import FunctionModel
 
 from agent_regression.support.evaluation import diagnostic_scenarios
+from agent_regression.support.prompt import SAFE_INSTRUCTIONS
 from agent_regression.support.scenarios import support_scenarios
+from agent_regression.support.targeted import targeted_scenarios
 from agent_regression.support.training import (
     CATEGORIES,
     DEFAULT_SEED,
@@ -66,7 +69,7 @@ def test_all_policy_intents_have_whole_request_train_validation_and_test_groups(
 
 
 def test_no_evaluation_identifiers_keys_or_customer_prompts_enter_training(corpus):
-    evaluations = [*support_scenarios(), *diagnostic_scenarios()]
+    evaluations = [*support_scenarios(), *diagnostic_scenarios(), *targeted_scenarios()]
     serialized = json.dumps(
         {
             "records": corpus.records,
@@ -203,7 +206,11 @@ def test_local_export_roundtrips_all_rows_and_refuses_to_overwrite(tmp_path: Pat
 
 
 def test_native_tool_schemas_include_prepared_strict_mode_and_nested_field_order(corpus):
-    assert corpus.manifest["corpus_version"] == "synthetic-support-lora-native-v2"
+    assert corpus.manifest["corpus_version"] == "synthetic-support-lora-native-v3"
+    assert (
+        corpus.manifest["instructions_sha256"]
+        == hashlib.sha256(SAFE_INSTRUCTIONS.encode()).hexdigest()
+    )
     for tool in corpus.tools:
         assert list(tool) == ["type", "function"]
         assert list(tool["function"]) == ["name", "description", "parameters", "strict"]

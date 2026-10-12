@@ -31,6 +31,8 @@ class _Intent:
     human: bool
     exception: bool
     partial: bool
+    uncertain_order: bool
+    wait_for_confirmation: bool
 
 
 def _intent(prompt: str) -> _Intent:
@@ -50,7 +52,9 @@ def _intent(prompt: str) -> _Intent:
             r"\b(?:do not|don't|never)\s+(?:give|send|get)\s+"
             r"(?:me\s+)?(?:my\s+)?money\s+back\b|"
             r"\b(?:not|without)\s+(?:asking|requesting|issuing|processing)\s+"
-            r"(?:for\s+)?(?:a\s+)?refund\b|\bno\s+refund\b",
+            r"(?:for\s+)?(?:a\s+)?refund\b|\bno\s+refund\b|"
+            r"\b(?:do not|don't|never|without)\s+return\b"
+            r"(?!\s+(?:more\s+than|above|over)\b)",
             text,
             re.I,
         )
@@ -60,22 +64,82 @@ def _intent(prompt: str) -> _Intent:
             r"\b(?:refund\s+(?:my\s+)?(?:order\b|ORD-|it\b)|"
             r"(?:want|like|request|need)\s+(?:a\s+)?refund\b|"
             r"(?:can|could|would)\s+you\s+(?:please\s+)?refund\b|"
-            r"(?:give|send|get)\s+(?:me\s+)?(?:my\s+)?money\s+back\b)",
+            r"(?:give|send|get)\s+(?:me\s+)?(?:my\s+)?money\s+back\b|"
+            r"return\s+(?:the\s+|my\s+)?(?:entire|full|whole)\s+"
+            r"(?:remaining\s+)?(?:payment|balance|amount|money)\b|"
+            r"return\s+all\s+(?:of\s+)?(?:the\s+|my\s+)?"
+            r"(?:remaining\s+)?(?:payment|balance|amount|money)\b)",
             text,
             re.I,
         )
     )
-    human = bool(re.search(r"\b(?:human|representative|manager|supervisor)\b", text, re.I))
-    exception = bool(re.search(r"\b(?:exception|manager|supervisor)\b", text, re.I))
-    partial = bool(
+    human_roles = r"(?:human|representative|manager|supervisor)"
+    negative_human = bool(
         re.search(
-            r"\bpartial\s+refund\b|\brefund\b.*\b(?:half|part|portion)\b|"
-            r"\brefund\b.*(?:\$\s*\d|\b\d+(?:\.\d+)?\s+(?:dollars?|cents?)\b)",
+            r"\b(?:do not|don't|never|without)\s+"
+            r"(?:(?:want|need|request)\s+(?:(?:you\s+)?to\s+)?)?"
+            r"(?:(?:contact|call|ask|involve|connect|send|refer|escalate|get)\s+)?"
+            r"(?:(?:me|us|it|this(?:\s+(?:request|order))?|ORD-\d{4})\s+)?"
+            r"(?:(?:to|with)\s+)?(?:(?:a|an|any|the)\s+)?"
+            + human_roles
+            + r"\b|\bno\s+"
+            + human_roles
+            + r"\b|\b(?:not|without)\s+(?:asking|requesting)\s+"
+            r"(?:for\s+)?(?:a\s+)?" + human_roles + r"\b",
             text,
             re.I,
         )
     )
-    return _Intent(ids, refund, human, exception, partial)
+    human = not negative_human and bool(re.search(r"\b" + human_roles + r"\b", text, re.I))
+    negative_exception = bool(
+        re.search(
+            r"\b(?:no|without)\s+(?:an?\s+)?exception\b|"
+            r"\b(?:do not|don't|never)\s+"
+            r"(?:(?:ask|request|want|need|seek|make)\s+)?"
+            r"(?:for\s+)?(?:an?\s+)?exception\b|"
+            r"\b(?:not|without)\s+(?:asking|requesting|seeking)\s+"
+            r"(?:for\s+)?(?:an?\s+)?exception\b",
+            text,
+            re.I,
+        )
+    )
+    exception = (
+        not negative_human
+        and not negative_exception
+        and bool(re.search(r"\b(?:exception|manager|supervisor)\b", text, re.I))
+    )
+    partial = not negative and bool(
+        re.search(
+            r"\bpartial\s+refund\b|"
+            r"\b(?:refund|return)\b.*(?:\b(?:half|quarter|third|part|portion)\b|"
+            r"\$\s*\d|\b\d+(?:\.\d+)?\s+(?:dollars?|cents?|percent)\b|"
+            r"\b\d+(?:\.\d+)?\s*%)",
+            text,
+            re.I,
+        )
+    )
+    # These are deliberately narrow test-double patterns for an unconfirmed
+    # reference, rather than uncertainty about the order's refund eligibility.
+    wait_for_confirmation = bool(
+        re.search(
+            r"\b(?:do not|don't)\s+(?:look\s+up|refund)\b[^.!?\n]*"
+            r"\buntil\b[^.!?\n]*\b(?:confirm|verify)\b",
+            text,
+            re.I,
+        )
+    )
+    uncertain_order = wait_for_confirmation or bool(
+        re.search(
+            r"\b(?:perhaps|maybe)\s+(?:for\s+)?ORD-\d{4}\b|"
+            r"\b(?:order|reference|ID)\s+(?:might|may)\s+be\s+ORD-\d{4}\b|"
+            r"\b(?:unsure|uncertain|not\s+sure)\b[^.!?\n]{0,50}"
+            r"\b(?:reference|order\s+(?:ID|number))\b[^.!?\n]{0,30}"
+            r"\b(?:correct|right)\b",
+            text,
+            re.I,
+        )
+    )
+    return _Intent(ids, refund, human, exception, partial, uncertain_order, wait_for_confirmation)
 
 
 def _current_messages(messages: list[ModelMessage]) -> tuple[str, list[ModelMessage]]:
@@ -132,6 +196,11 @@ def make_offline_model(
         key_match = re.search(r"^Trusted request ID: ([^\n]+)$", info.instructions or "", re.M)
         key = key_match.group(1) if key_match else request_id
 
+        if intent.wait_for_confirmation and intent.order_ids:
+            # An explicit bound wait also withholds an order-specific human
+            # action. It does not block unrelated general human help without ID.
+            return _text("Which complete order ID have you confirmed for this request?")
+
         if intent.partial and not intent.human:
             return _text("Only full refunds are supported. Would you like a full refund instead?")
 
@@ -163,7 +232,11 @@ def make_offline_model(
                 )
             return _text(f"The refund was denied: {result.get('reason_code', 'unknown_reason')}.")
 
-        order_id = intent.order_ids[0] if len(intent.order_ids) == 1 else None
+        order_id = (
+            intent.order_ids[0]
+            if len(intent.order_ids) == 1 and not intent.uncertain_order
+            else None
+        )
         if order_id is None:
             if intent.human:
                 if mutation == "ignore_escalation":
