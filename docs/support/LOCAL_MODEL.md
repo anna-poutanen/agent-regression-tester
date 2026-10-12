@@ -178,7 +178,7 @@ These commands test 70 targeted runs and 102 original/diagnostic runs,
 respectively. Read [EVALUATION.md](EVALUATION.md) for measured results and any
 remaining valid-action failures before choosing a model for the demonstration.
 
-### Optional reasoning-template experiment
+### Opt-in reasoning-template experiment
 
 A separate experiment restarts the same 8B checkpoint with native thinking
 enabled. It uses the same temperature, token limit, concurrency and cache:
@@ -194,17 +194,42 @@ HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 \
   --chat-template-args '{"enable_thinking":true}'
 ```
 
-This is an experiment, with no recommendation yet. Its focused six-case pilot
+This is an opt-in development experiment, not a general recommendation. Its
+focused six-case pilot
 passed, but took about 14–64 seconds per request. The full targeted suite passed
 70/70, including zero tools in all 60 partial/ambiguity runs and correct refunds
-in all ten controls. The original repeated suite and direct backend audit remain
-pending. Current source contains the exact tested V14 instructions with fingerprint
+in all ten controls. The independently audited original suite completed 90/102
+(59/66 canonical and 31/36 diagnostic), including 19/21 required refunds, in about
+59.88 minutes. Both separate partial regressions passed 3/3 with no tools and
+full-refund consent questions. The actual-tool run completed only the first 15
+of 45 planned conversations; all fifteen passed, and thirty planned cases have
+no completed result. The next case may have been in flight when stopped. The
+completed prefix has three correct refunds, three correct tickets and zero
+runtime errors, independently checked against the backend. It does not cover
+later injection, order-bound human or partial requests, and is not a complete
+direct score or reliability estimate. The original failures retain missing tools,
+incorrect escalation attempts, token exhaustion and an unsupported checked-order
+claim. A separate assistant
+review of all 70 targeted answers found the expected clarification topics and
+receipt-backed refunds, but three replies retained policy commentary, template
+markup or minor unsupported finality wording. This is development evidence,
+not a semantic or reliability guarantee.
+Some passing original replies also add unsupported timeline or contact promises.
+
+Current source contains the exact tested V14 instructions with fingerprint
 `56022ec02f212e4614b42687fff33a9d96b6dd7c4c10c81eb2f8e1b75b225862`.
 The same V14 policy with
 thinking disabled passed only 37/48 pilot cases and retained missing actions,
 an incorrect escalation reason and a false processed-request claim.
-See [EVALUATION.md](EVALUATION.md) for the separate failed and pending evidence.
+See [EVALUATION.md](EVALUATION.md) for the completed, failed and interrupted evidence.
 No weights or training inputs are changed by either server command.
+
+The run stopped after the user reported heat and active fans. All owned inference
+jobs and the server were stopped, with port 8080 closed; they will not resume
+automatically. The commands above require an explicit manual start. Completed
+replay evidence and the partial direct artifacts remain saved. Heavy model
+inference is excluded from CI, which uses the offline test double and blocks
+provider requests in ordinary tests.
 
 ## Run actual local tools
 

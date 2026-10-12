@@ -21,9 +21,19 @@ passed the complete **70/70** targeted replay: **30/30** partial-only requests,
 **30/30** ambiguous references and **10/10** authorized full-refund controls.
 The fresh calibrated baseline passed **17/70**. All 60 clarification runs used
 zero tools; the ten controls performed the exact lookup and refund. The original
-102-run suite and actual-store conversations are still being evaluated before a
-general model recommendation. This change combines revised instructions and a
-new model configuration; it is not evidence of improved training.
+suite improved from **72/102** to **90/102**: **59/66** canonical and **31/36**
+diagnostic runs pass. Twelve failures remain, including incorrect or premature
+handoffs, missing actions and reasoning-token exhaustion. Both separate
+partial-refund regressions pass **3/3** with zero tools and full-refund consent
+questions. Some passing replies also contain unsupported promises or policy
+commentary. The actual-store run was stopped when the user reported heat and
+fan activity: **15 of 45** planned conversations completed, all passing; the
+remaining 30 have no completed result. This ordered prefix is an incomplete
+direct check, not a full-suite score. The owned inference server and evaluation
+processes were stopped, and
+port 8080 was verified closed. This change combines revised instructions and a
+new model configuration; it is not evidence of improved training or a general
+robustness guarantee.
 
 Fresh calibrated-model baseline and prompt/model candidate results are documented
 in [support evaluation evidence](support/EVALUATION.md). Prompt candidates are
@@ -55,8 +65,8 @@ Current source validation on macOS:
 
 The private source repository is
 [anna-poutanen/agent-regression-tester](https://github.com/anna-poutanen/agent-regression-tester).
-[GitHub CI run 38273166975](https://github.com/anna-poutanen/agent-regression-tester/actions/runs/38273166975)
-passed all four jobs for source commit `9e29fb8`: **844 passed and 7 skipped**
+[GitHub CI run 38279240003](https://github.com/anna-poutanen/agent-regression-tester/actions/runs/38279240003)
+passed all four jobs for source commit `e9c368b`: **844 passed and 7 skipped**
 on each Linux/Python 3.11–3.13 job, plus lint, types, package builds and reviewed
 examples, including detection of the seeded failures. Downloaded JUnit artifacts
 agree with those totals. Live model inference and training remain opt-in local
@@ -132,8 +142,9 @@ Current source validation passes on macOS:
   The sdist includes experiment scripts and tests. Weights, generated corpora,
   reports and virtual environments are excluded.
 
-The prepared CI workflow includes the new support suite and a known failing
-refund mutation. It has not run remotely; Python 3.12 and Linux remain CI targets.
+At this October 11 snapshot, the prepared CI workflow included the new support
+suite and a known failing refund mutation, but had not run remotely; Python 3.12
+and Linux were still CI targets. The October 12 section records completed CI.
 
 The original build snapshot below is retained for historical context. Current
 source validation and the final model comparison are recorded with this milestone;

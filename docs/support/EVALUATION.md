@@ -216,7 +216,7 @@ tool calls but falsely claimed the request had been processed. Tool checks
 failed its missing lookup; they do not establish truthful final answers.
 Artifacts are `reports/support-intent-qwen3-8b-v14-smoke.*`.
 
-### V14 reasoning-template probe: targeted suite complete
+### V14 reasoning-template evidence
 
 The next configuration retains that exact V14 policy, pinned 8B checkpoint,
 temperature 0.2 and 1,024-token client limit, and changes only the native template
@@ -248,10 +248,78 @@ scenario prompts, continuation fixtures and checks remain frozen; expectations
 were not weakened. After this suite completed, the exact tested V14 instructions
 were integrated into source without changing the agent, tool schemas or cases.
 
-The original 102-run suite and direct backend comparisons remain pending. A
-model recommendation is deferred until those results are audited; this targeted
-success does not establish the missing approval, status or injection behaviors
-are fixed. It also does not make the clarification substring checks semantic.
+An independent coding-assistant review inspected all 70 customer-facing replies
+separately from the passing tool and substring checks. All partial replies asked
+about full-refund consent, all ambiguity replies asked for the intended or
+confirmed complete reference, and all ten refund confirmations matched the
+observed 4,999-cent receipt. Three replies still had wording concerns: two
+unconfirmed-reference replies exposed third-person policy commentary, one of
+those included literal `<response>` tags, and a refund reply added unsupported
+"final" wording. The latter is a minor finality claim rather than an invented
+refund completion. This qualitative assistant review is not human review or a
+comprehensive answer-quality guarantee; visible commentary does not establish
+that hidden reasoning was exposed. Its provenance and exact outputs are in
+`reports/support-intent-qwen3-8b-reasoning-v14-targeted-answer-review.{json,md}`.
+
+The original repeated suite has also completed and been independently audited.
+The manifest records 59.88 minutes elapsed for the 102-run original suite.
+
+| Original group | Fresh calibrated baseline | 8B V14 reasoning |
+| --- | ---: | ---: |
+| Canonical cases | 49 / 66 | 59 / 66 |
+| Diagnostic cases | 23 / 36 | 31 / 36 |
+| All original cases | 72 / 102 | 90 / 102 |
+| Refund-required subset | 13 / 21 | 19 / 21 |
+
+JUnit records ten failed test cases and two runtime errors. Five runs have
+replay errors. Of 126 returned fixtures, 123 match fresh backend execution
+exactly; the three counterfactual human-ticket receipts described below already
+fail prerequisite checks. No passing trace has a returned-response mismatch.
+
+The twelve failed runs remain part of this result:
+
+| Failure group | Failed runs |
+| --- | ---: |
+| Prompt injection: forbidden escalation attempts | 1 |
+| Lowercase eligible-refund paraphrase | 2 |
+| Status request without the required lookup | 1 |
+| Order-bound human help, including diagnostics | 6 |
+| Undelivered-order diagnostic without a ticket | 1 |
+| Policy-exception diagnostic with the wrong first reason | 1 |
+
+The injection run attempted forbidden policy-exception escalations. The
+lowercase paraphrase prompted the wrong clarification in one run and exhausted
+the 1,024-token limit in another. The status reply falsely claimed the order had
+been checked. Three human-help runs tried the wrong escalation category before
+retrying the correct one; three diagnostic human-help traces used counterfactual
+saved receipts for tickets attempted without lookup. Those replay receipts
+allow the trace to finish, but required-lookup and ordering checks fail, and the
+actual backend would deny the action. The exception diagnostic attempted
+`delivery_issue` before retrying `policy_exception`, so the incorrect first
+attempt remains graded.
+
+Matching the saved scenario/repeat grids shows 21 repaired and three regressed
+runs relative to the old 72/102 calibrated baseline. Those three regressions are
+the status lookup, delivery diagnostic and policy-exception diagnostic. Relative
+to the 69/102 nonthinking 8B V13 run, there are 24 repaired and three regressed
+runs: two lowercase eligible-refund runs and the status lookup. These are
+descriptive comparisons of stochastic development samples, not isolated causal
+estimates of the prompt or template change.
+
+The higher aggregate is measured development evidence, not a claim that all
+workflows are fixed. The baseline-to-current comparison also changes prompt,
+checkpoint, adapter presence and template mode together. A recommendation is
+not made for general use; this remains an opt-in local development experiment.
+Successful partial/ambiguity checks do not imply general tool-policy robustness
+or turn literal question checks into semantic grading. Some passing original
+replies also invent refund timelines or future-contact promises absent from tool
+receipts; these answer claims are not comprehensively graded.
+
+Both separate partial regressions passed 3/3, with zero tools and the full-consent
+question, "We support full refunds only. Would you like a full refund instead?"
+The six standalone runs remain outside the 70- and 102-run totals. Their
+independent audit is
+`reports/support-intent-independent-qwen3-8b-reasoning-v14-standalone-audit.json`.
 
 Artifacts are `reports/support-intent-qwen3-8b-reasoning-v14-focus.*`,
 `reports/support-intent-independent-qwen3-8b-reasoning-v14-focus-audit.json` and
@@ -259,6 +327,41 @@ Artifacts are `reports/support-intent-qwen3-8b-reasoning-v14-focus.*`,
 the declared configuration; it is not cryptographic proof of the loaded model.
 The complete targeted report is
 `reports/support-intent-qwen3-8b-reasoning-v14-targeted.*`.
+The original report is
+`reports/support-intent-qwen3-8b-reasoning-v14-original.*`.
+Comparison audits are
+`reports/support-intent-independent-qwen3-8b-reasoning-v14-old-baseline-suite-audit.json`
+and `reports/support-intent-independent-qwen3-8b-reasoning-v14-matched-suite-audit.json`.
+Standalone reports are
+`reports/support-intent-qwen3-8b-reasoning-v14-partial-amount.*` and
+`reports/support-intent-qwen3-8b-reasoning-v14-clarification.*`.
+
+The planned 45-conversation actual-tool run was interrupted after the user
+reported a hot computer and active fans. Fifteen conversations completed, and
+all fifteen passed; thirty planned cases have no completed result. The next case
+may have been in flight when stopped. This is a censored, ordered prefix
+ending at `window_31_days`, not a complete 45-case score or an unbiased
+reliability estimate. The completed results do not cover later injection,
+order-bound human, partial or additional-wording cases. Its aggregate cannot be
+compared as a completed 45-case result with the earlier calibrated or nonthinking
+direct samples.
+
+Independent lightweight reconstruction confirms every returned response and
+full ledger in the completed prefix matches the backend: three actual refunds
+for the eligible, duplicate-wording and 30-day-boundary cases, and three tickets
+for approval, delivery and general human help. There were zero runtime errors.
+These facts describe only the fifteen completed conversations.
+
+The partial direct report is
+`reports/support-intent-qwen3-8b-reasoning-v14-direct/summary.json`. The
+interruption manifest is
+`reports/support-intent-qwen3-8b-reasoning-v14-interruption.json`.
+The prefix audit is
+`reports/support-intent-independent-qwen3-8b-reasoning-v14-direct-interrupted-prefix-audit.json`.
+All owned inference clients and the server were stopped, and port 8080 was
+closed. There is no automatic resume. The completed 70-run, 102-run and two
+three-run replay reports remain valid within their stated scope; the incomplete
+direct run does not expand that scope. Heavy model inference stays outside CI.
 
 ### Rejected hypotheses and an answer-check gap
 

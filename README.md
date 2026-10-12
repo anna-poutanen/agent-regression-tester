@@ -63,10 +63,15 @@ calibration restored some refunds but still failed 29 of 102 development runs.
 The current authorization policy and [14 targeted cases](docs/support/TARGETED.md)
 distinguish partial consent and uncertain order references from valid full-refund
 requests. The [evaluation evidence](docs/support/EVALUATION.md) preserves measured
-before/after results and rejected prompt revisions. The revised policy with the local 8B model in reasoning mode passed all 70 targeted
-development runs, including ten valid-refund controls. Broader workflows are still
-under evaluation. Offline demos are deterministic; their passing results do not
-establish real-model reliability.
+before/after results and rejected prompt revisions. The revised policy with the
+local 8B model in reasoning mode passed all 70 targeted development runs,
+including ten valid-refund controls. The original suite improved from 72/102 to
+90/102; remaining failures include handoff reasons, missing or premature tools,
+and a reasoning-token limit. Some passing replies also contain unsupported
+promises or policy commentary. Offline demos are deterministic; their passing
+results do not establish real-model reliability. The follow-up actual-store run
+was stopped after 15 of 45 planned conversations when the computer became hot;
+all 15 completed cases passed, but the direct comparison remains incomplete.
 
 ## Record → review → replay
 
