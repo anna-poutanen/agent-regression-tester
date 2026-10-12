@@ -124,3 +124,19 @@ Live-model testing is a later opt-in gate: keep saved tools mocked, run each sce
 ## Progress tracking
 
 See `docs/BUILD_STATUS.md` for completed components, exact validation results, remaining limitations, and recommended next steps. Update this plan only when implementation reveals a material change to scope or architecture.
+
+### Support application milestone
+
+The realistic local support application and opt-in real-model path are now built.
+They provide actual backend actions, independent policy assertions, mutation
+coverage, synthetic training-data generation and a bounded local LoRA experiment.
+The [support guide](support/README.md) describes the workflow, and [evaluation evidence](support/EVALUATION.md)
+separates deterministic testing from observed model reliability. Training remains
+optional; the tester's value is exposing behavioral regressions regardless of the
+model selected.
+
+Next product work should add more independent failures and unseen request wording,
+review final-answer claims, and improve realistic multi-turn coverage before
+external pilots. A successful synthetic model run cannot replace testing one
+existing developer application when the project is ready for users. No outreach,
+publication or hosted deployment has occurred.

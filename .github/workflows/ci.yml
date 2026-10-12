@@ -30,6 +30,7 @@ jobs:
       - run: python -m coverage report
       - run: python -m coverage xml
       - run: agent-regression demo --repeats 3
+      - run: agent-regression support demo --repeats 3 --json-report reports/realistic-support.json
       - run: python -m build
       - uses: actions/upload-artifact@v4
         if: always()
@@ -60,6 +61,19 @@ jobs:
         run: |
           set +e
           agent-regression demo --broken
+          status=$?
+          set -e
+          test "$status" -eq 1
+      - name: Realistic support policy scenarios
+        run: >-
+          agent-regression support demo --repeats 3
+          --json-report reports/realistic-support.json
+          --junit-report reports/realistic-support.xml
+      - name: Prove an ineligible refund attempt fails
+        shell: bash
+        run: |
+          set +e
+          agent-regression support demo --mutation refund_ineligible --scenario outside_window
           status=$?
           set -e
           test "$status" -eq 1

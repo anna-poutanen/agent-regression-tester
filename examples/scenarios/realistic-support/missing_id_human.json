@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "name": "missing_id_human",
+  "prompt": "I want a refund but do not know the order ID. Please get a human to help me.",
+  "fixtures": [
+    {
+      "tool_name": "escalate_to_human",
+      "arguments": {
+        "reason": "customer_request",
+        "order_id": null
+      },
+      "response": {
+        "status": "escalated",
+        "ticket_id": "ticket-0001",
+        "reason": "customer_request",
+        "order_id": null,
+        "idempotent": false
+      },
+      "outcome": "return"
+    }
+  ],
+  "recorded_calls": [
+    {
+      "tool_name": "escalate_to_human",
+      "arguments": {
+        "reason": "customer_request",
+        "order_id": null
+      },
+      "response": {
+        "status": "escalated",
+        "ticket_id": "ticket-0001",
+        "reason": "customer_request",
+        "order_id": null,
+        "idempotent": false
+      },
+      "outcome": "return",
+      "tool_call_id": null,
+      "step": 0
+    }
+  ],
+  "checks": [
+    {
+      "kind": "forbidden",
+      "tool_name": "lookup_order",
+      "arguments": null
+    },
+    {
+      "kind": "required",
+      "tool_name": "escalate_to_human",
+      "arguments": {
+        "reason": "customer_request",
+        "order_id": null
+      },
+      "min_calls": 1
+    },
+    {
+      "kind": "arguments",
+      "tool_name": "escalate_to_human",
+      "path": "reason",
+      "expected": "customer_request",
+      "operator": "equals",
+      "match_arguments": null
+    },
+    {
+      "kind": "arguments",
+      "tool_name": "escalate_to_human",
+      "path": "order_id",
+      "expected": null,
+      "operator": "equals",
+      "match_arguments": null
+    },
+    {
+      "kind": "max_calls",
+      "tool_name": "escalate_to_human",
+      "maximum": 1
+    },
+    {
+      "kind": "forbidden",
+      "tool_name": "issue_refund",
+      "arguments": null
+    }
+  ],
+  "reviewed": true,
+  "metadata": {
+    "provenance": "synthetic_hand_authored",
+    "purpose": "evaluation",
+    "policy_version": "support-v1",
+    "reference_date": "2026-10-11",
+    "authenticated_customer_id": "cust-001",
+    "request_id": "req-support-demo",
+    "category": "explicit_human",
+    "expected_outcome": "one human escalation with reason customer_request; no refund",
+    "review_basis": "fixed local business policy; independent of agent output",
+    "continuation_fixtures": 0
+  }
+}

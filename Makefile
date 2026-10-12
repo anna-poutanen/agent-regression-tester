@@ -1,7 +1,7 @@
 VENV_PYTHON := .venv/bin/python
 VENV_PIP := .venv/bin/pip
 
-.PHONY: setup check test demo build
+.PHONY: setup check test demo support-demo build
 
 setup:
 	python3 -m venv .venv
@@ -19,6 +19,9 @@ test:
 
 demo:
 	.venv/bin/agent-regression demo --repeats 3
+
+support-demo:
+	.venv/bin/agent-regression support demo --repeats 3
 
 build:
 	$(VENV_PYTHON) -m build

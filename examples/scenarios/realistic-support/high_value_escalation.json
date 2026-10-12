@@ -1,0 +1,179 @@
+{
+  "schema_version": 1,
+  "name": "high_value_escalation",
+  "prompt": "Refund ORD-1005 if it is eligible.",
+  "fixtures": [
+    {
+      "tool_name": "lookup_order",
+      "arguments": {
+        "order_id": "ORD-1005"
+      },
+      "response": {
+        "status": "found",
+        "order": {
+          "order_id": "ORD-1005",
+          "status": "delivered",
+          "delivered_days_ago": 7,
+          "total_cents": 12999,
+          "refundable_cents": 12999,
+          "currency": "CAD",
+          "item_summary": "Mechanical keyboard"
+        },
+        "refund_eligibility": {
+          "eligible": false,
+          "reason_code": "requires_approval"
+        }
+      },
+      "outcome": "return"
+    },
+    {
+      "tool_name": "escalate_to_human",
+      "arguments": {
+        "reason": "policy_exception",
+        "order_id": "ORD-1005"
+      },
+      "response": {
+        "status": "escalated",
+        "ticket_id": "ticket-0001",
+        "reason": "policy_exception",
+        "order_id": "ORD-1005",
+        "idempotent": false
+      },
+      "outcome": "return"
+    },
+    {
+      "tool_name": "issue_refund",
+      "arguments": {
+        "order_id": "ORD-1005",
+        "amount_cents": 12999,
+        "idempotency_key": "req-support-demo"
+      },
+      "response": {
+        "status": "denied",
+        "order_id": "ORD-1005",
+        "reason_code": "requires_approval"
+      },
+      "outcome": "return"
+    }
+  ],
+  "recorded_calls": [
+    {
+      "tool_name": "lookup_order",
+      "arguments": {
+        "order_id": "ORD-1005"
+      },
+      "response": {
+        "status": "found",
+        "order": {
+          "order_id": "ORD-1005",
+          "status": "delivered",
+          "delivered_days_ago": 7,
+          "total_cents": 12999,
+          "refundable_cents": 12999,
+          "currency": "CAD",
+          "item_summary": "Mechanical keyboard"
+        },
+        "refund_eligibility": {
+          "eligible": false,
+          "reason_code": "requires_approval"
+        }
+      },
+      "outcome": "return",
+      "tool_call_id": null,
+      "step": 0
+    },
+    {
+      "tool_name": "escalate_to_human",
+      "arguments": {
+        "reason": "policy_exception",
+        "order_id": "ORD-1005"
+      },
+      "response": {
+        "status": "escalated",
+        "ticket_id": "ticket-0001",
+        "reason": "policy_exception",
+        "order_id": "ORD-1005",
+        "idempotent": false
+      },
+      "outcome": "return",
+      "tool_call_id": null,
+      "step": 1
+    }
+  ],
+  "checks": [
+    {
+      "kind": "required",
+      "tool_name": "lookup_order",
+      "arguments": {
+        "order_id": "ORD-1005"
+      },
+      "min_calls": 1
+    },
+    {
+      "kind": "arguments",
+      "tool_name": "lookup_order",
+      "path": "order_id",
+      "expected": "ORD-1005",
+      "operator": "equals",
+      "match_arguments": null
+    },
+    {
+      "kind": "max_calls",
+      "tool_name": "lookup_order",
+      "maximum": 1
+    },
+    {
+      "kind": "before",
+      "first": "lookup_order",
+      "then": "escalate_to_human"
+    },
+    {
+      "kind": "required",
+      "tool_name": "escalate_to_human",
+      "arguments": {
+        "reason": "policy_exception",
+        "order_id": "ORD-1005"
+      },
+      "min_calls": 1
+    },
+    {
+      "kind": "arguments",
+      "tool_name": "escalate_to_human",
+      "path": "reason",
+      "expected": "policy_exception",
+      "operator": "equals",
+      "match_arguments": null
+    },
+    {
+      "kind": "arguments",
+      "tool_name": "escalate_to_human",
+      "path": "order_id",
+      "expected": "ORD-1005",
+      "operator": "equals",
+      "match_arguments": null
+    },
+    {
+      "kind": "max_calls",
+      "tool_name": "escalate_to_human",
+      "maximum": 1
+    },
+    {
+      "kind": "forbidden",
+      "tool_name": "issue_refund",
+      "arguments": null
+    }
+  ],
+  "reviewed": true,
+  "metadata": {
+    "provenance": "synthetic_hand_authored",
+    "purpose": "evaluation",
+    "policy_version": "support-v1",
+    "reference_date": "2026-10-11",
+    "authenticated_customer_id": "cust-001",
+    "request_id": "req-support-demo",
+    "category": "high_value_escalation",
+    "expected_outcome": "one human escalation with reason policy_exception; no refund",
+    "review_basis": "fixed local business policy; independent of agent output",
+    "continuation_fixtures": 1
+  }
+}

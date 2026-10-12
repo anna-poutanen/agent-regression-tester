@@ -21,12 +21,14 @@ from .runner import run_suite_sync
 from .schema import Scenario, SuiteResult
 from .storage import load_scenario, save_scenario
 from .suggest import suggest_checks
+from .support.cli import app as support_app
 
 app = typer.Typer(
     help="Record, review, and replay Pydantic AI tool-call regression tests.",
     no_args_is_help=True,
     pretty_exceptions_enable=False,
 )
+app.add_typer(support_app, name="support")
 
 AgentTarget = Agent[Any, Any] | Callable[[], Agent[Any, Any]]
 

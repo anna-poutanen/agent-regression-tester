@@ -4,6 +4,8 @@ Turn an agent tool-call failure into a reviewed regression test. Record a Pydant
 
 **Local alpha:** supports Pydantic AI 2.55.x, text-output agents, and in-process function tools. Includes deterministic test agents for support, document search, and CRM workflows. No provider credentials are needed to try it.
 
+The [realistic support agent](docs/support/README.md) adds nine synthetic orders, a guarded local refund ledger, human-support tickets, 22 reviewed scenarios, and optional real language-model inference on your computer. Its default model is an offline test double. The local-model path supports a pretrained base model and a separate synthetic-data LoRA training experiment.
+
 ## Try it locally
 
 Python 3.11+ is required.
@@ -27,6 +29,28 @@ FAIL: ineligible_order — failed 1 of 1 runs
 ```
 
 Business-tool bodies do not execute during replay. Saved fixtures supply the responses, including a synthetic response for the forbidden refund so the trace can finish. Model/provider requests still occur if you use a configured live model. The demo uses FunctionModel, a deterministic script.
+
+## Realistic support agent
+
+```sh
+# Execute actual tools against a fresh harmless local store.
+agent-regression support chat 'Please refund ORD-1001 if eligible.'
+agent-regression support chat 'Please refund ORD-1002.'
+agent-regression support chat 'Refund my order.'
+
+# Replay all 22 independently reviewed scenarios; tools are mocked here.
+agent-regression support demo --repeats 3 --json-report reports/support.json
+
+# Intentionally attempt an ineligible refund; the tester exits 1.
+agent-regression support demo --mutation refund_ineligible --scenario outside_window
+
+# A duplicate attempt fails even though backend idempotency prevents double payment.
+agent-regression support demo --mutation duplicate_refund --scenario duplicate_wording
+```
+
+The backend checks customer ownership, completed lookup, eligibility, exact integer amounts and request keys independently of the prompt. The agent must also understand whether the customer authorized a refund or needs clarification. Safe and broken conversations expose their actual calls and local ledgers; `support chat --json --record reports/conversation.json` saves an unreviewed trace.
+
+See the [support guide](docs/support/README.md), [synthetic dataset card](docs/support/DATASET.md), [local model setup](docs/support/LOCAL_MODEL.md), and [evaluation evidence](docs/support/EVALUATION.md). The local model instructions use a loopback inference server and require no paid API.
 
 ## Record → review → replay
 

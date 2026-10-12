@@ -1,5 +1,56 @@
 # Local build status — October 11, 2026
 
+## Realistic support milestone
+
+The support application now includes a Pydantic AI agent, nine synthetic orders,
+guarded local refunds and human tickets, 22 reviewed policy scenarios, and twelve
+additional diagnostic requests. It supports an offline test double and opt-in
+loopback model inference. All eight seeded behavior faults are detected; replay
+does not execute the store. The actual backend checks authorization, lookup,
+eligibility, money and idempotency independently of the prompt.
+
+The synthetic training generator supplies 384/48/48 train/validation/test decision
+records with disjoint identifiers, request keys and wording. Native-v2 export
+matches the live inference prompt strings and tokens across all 480 decisions.
+Separate review
+re-executed all 210 conversations against the backend and checked exclusion of
+evaluation cases. Training uses a local LoRA adapter with frozen Qwen base weights;
+the [training guide](support/TRAINING.md) documents native token masking, manifests
+and optional dependencies. No real customer data or paid model API is involved.
+
+Real-model evaluation already exposed missing actions and guessed orders. The
+initial model passed 14/22 runs; a revised prompt passed 45/66. The first paired
+comparison passed 60/102 with the base and 54/102 with the initial adapter:
+lower training loss did not establish better behavior. These are historical
+development results, not a production benchmark. See [evaluation evidence](support/EVALUATION.md)
+for experiment configuration, comparison results and limits.
+
+Current source validation passes on macOS:
+
+- **Python 3.13.2 and 3.11.14, core environment:** 669 tests pass on each version;
+  seven optional transport/tokenizer checks skip without model dependencies.
+- **Python 3.13.2, local-model environment:** all 676 tests pass, including those
+  seven checks. These use mocked HTTP and local tokenizer files, not inference.
+- **Coverage:** 96% combined statement/branch coverage.
+- **Ruff:** all 63 Python files pass lint and formatting checks.
+- **Mypy:** strict checks pass for all 22 package source modules.
+- **Offline policy replay:** 66/66 runs pass; all eight intentionally broken
+  behaviors fail their targeted checks.
+- **Clean wheel installation:** 44/44 replay runs pass from outside the checkout;
+  bundled orders, diagnostic scenarios and corpus generation work without MLX.
+- **Packaging:** wheel and sdist include source, seed, typing marker and guides.
+  The sdist includes experiment scripts and tests. Weights, generated corpora,
+  reports and virtual environments are excluded.
+
+The prepared CI workflow includes the new support suite and a known failing
+refund mutation. It has not run remotely; Python 3.12 and Linux remain CI targets.
+
+The original build snapshot below is retained for historical context. Current
+source validation and the final model comparison are recorded with this milestone;
+the earlier statement that no real model ran applies only to that snapshot.
+
+## Initial alpha snapshot
+
 The first local alpha is implemented. Three agents built the artifact/check engine, framework adapter/runner, and CLI/reporting in parallel; the primary agent integrated examples, documentation, CI, and packaging. A separate adversarial review added regression tests for the replay boundary. No remote repository, package publication, provider-model calls, or user outreach was performed.
 
 ## Completed
