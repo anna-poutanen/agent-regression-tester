@@ -16,16 +16,26 @@ The deterministic demo also now handles explicit waits and negated human or
 exception requests. These bounded parser fixes apply only to the offline test
 double. They are tested separately from real inference.
 
+The integrated V14 policy with the pinned local 8B checkpoint in reasoning mode
+passed the complete **70/70** targeted replay: **30/30** partial-only requests,
+**30/30** ambiguous references and **10/10** authorized full-refund controls.
+The fresh calibrated baseline passed **17/70**. All 60 clarification runs used
+zero tools; the ten controls performed the exact lookup and refund. The original
+102-run suite and actual-store conversations are still being evaluated before a
+general model recommendation. This change combines revised instructions and a
+new model configuration; it is not evidence of improved training.
+
 Fresh calibrated-model baseline and prompt/model candidate results are documented
 in [support evaluation evidence](support/EVALUATION.md). Prompt candidates are
 rejected when they hide valid actions or leave the original partial-amount failure
 unfixed. These are synthetic development measurements after prompt selection;
 they do not establish production reliability or comprehensive answer correctness.
 
-No model weights or training files changed during this follow-up. Fresh corpus
-exports are versioned native-v3 and hash the revised instructions; the completed
-native-v2 training corpus and adapter remain preserved locally. Training has not
-been rerun for these prompt changes.
+Existing 4B model weights, adapters and training files remain unchanged. The
+separate 8B candidate uses newly downloaded public pretrained weights with no
+adapter. Fresh corpus exports are versioned native-v3 and hash the revised
+instructions; the completed native-v2 training corpus and adapter remain
+preserved locally. Training has not been rerun for these prompt changes.
 
 Current source validation on macOS:
 
@@ -37,14 +47,20 @@ Current source validation on macOS:
 - Ruff lint and formatting pass for **71 Python files**; strict mypy passes for
   **23 source modules**.
 - Offline policy replay: **66/66** original and **42/42** targeted runs pass.
+- Clean installed wheel: **50/50** offline scenarios pass outside the checkout;
+  bundled data and v3 corpus generation work without OpenAI or MLX. Both wheel
+  and sdist include the new source, tests, guides and reviewed scenarios.
 - Published-source scan excludes credentials, weights, generated corpora, raw
   reports, virtual environments and build artifacts.
 
 The private source repository is
 [anna-poutanen/agent-regression-tester](https://github.com/anna-poutanen/agent-regression-tester).
-Its [CI workflow](../.github/workflows/ci.yml) runs offline tests on Python
-3.11–3.13, builds packages and exercises reviewed examples. Live model inference
-and training remain opt-in local experiments.
+[GitHub CI run 38273166975](https://github.com/anna-poutanen/agent-regression-tester/actions/runs/38273166975)
+passed all four jobs for source commit `9e29fb8`: **844 passed and 7 skipped**
+on each Linux/Python 3.11–3.13 job, plus lint, types, package builds and reviewed
+examples, including detection of the seeded failures. Downloaded JUnit artifacts
+agree with those totals. Live model inference and training remain opt-in local
+experiments.
 
 The October 11 milestone below is retained as measured history; its counts and
 unrun-CI statements describe that snapshot.

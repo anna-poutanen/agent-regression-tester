@@ -15,6 +15,10 @@ fingerprinted corpus. The completed training and its frozen v2 inputs remain
 unchanged. Prompt candidate labels such as V2 and V6 below are independent of
 training-corpus version numbers.
 
+Current source now contains the exact V14 instructions measured in the
+reasoning-mode experiment below. The V13 comparisons retain their original
+fingerprints and results; integrating V14 does not relabel those historical runs.
+
 The [14 targeted cases](TARGETED.md) were independently reviewed and frozen before
 the first targeted comparison: six partial-only requests, six ambiguous references
 and two explicit full-refund controls. Partial requests allow zero or one exact
@@ -107,15 +111,84 @@ Artifacts are `reports/support-intent-after-v13-targeted.*`,
 different instruction fingerprint and are not measurements of the frozen V13
 policy.
 
-### Frozen V13 policy: 8B capacity probe
+### Frozen V13 policy: 8B candidate rejected for general use
 
-The next candidate uses the public, pretrained Qwen3-8B 4-bit checkpoint directly,
-with native `enable_thinking=false` and no 4B LoRA adapter. Its first one-repeat
-pilot passed 13/14 targeted cases: all 12 partial/ambiguity requests made zero
-tool calls, and both full-refund controls performed lookup and refund. The
-remaining failure was the literal question-mark output check. This pilot does
-not substitute for the full repeated suites or direct backend conversations;
-those results are pending.
+This candidate uses the public, pretrained Qwen3-8B 4-bit checkpoint directly,
+with native `enable_thinking=false` and no 4B LoRA adapter. The full targeted
+suite produced:
+
+| Targeted group | Calibrated 4B V13 passed / runs | 8B V13 passed / runs |
+| --- | ---: | ---: |
+| Six partial-only cases | 30 / 30 | 30 / 30 |
+| Six ambiguous-reference cases | 30 / 30 | 26 / 30 |
+| Explicit full-refund control | 1 / 5 | 5 / 5 |
+| Same-ID repeated full-refund control | 5 / 5 | 5 / 5 |
+| All 14 targeted cases | 66 / 70 | 66 / 70 |
+
+All 60 partial/ambiguity runs made zero tool calls. The four failures were in
+`targeted_unconfirmed_single_id` and failed only the literal question-mark
+check. Both full-refund controls performed the required lookup and one exact
+refund in all ten runs. The equal aggregate scores therefore conceal different
+failure groups: 8B retained authorized full refunds here, while some ambiguity
+answers omitted the required punctuation. This does not establish that every
+zero-tool answer asks a useful clarification question.
+
+The separate `partial_amount.json` and `partial_clarification.json` cases each
+passed 3/3 with no tools and full-refund consent questions. Their six runs remain
+outside the frozen targeted total. Artifacts are
+`reports/support-intent-qwen3-8b-v13-targeted.*`,
+`reports/support-intent-qwen3-8b-v13-partial-amount.*` and
+`reports/support-intent-qwen3-8b-v13-clarification.*`.
+
+| Original group | Fresh calibrated baseline | Calibrated 4B V13 | 8B V13 |
+| --- | ---: | ---: | ---: |
+| Canonical cases | 49 / 66 | 51 / 66 | 48 / 66 |
+| Diagnostic cases | 23 / 36 | 23 / 36 | 21 / 36 |
+| All original cases | 72 / 102 | 74 / 102 | 69 / 102 |
+| Refund-required subset | 13 / 21 | 10 / 21 | 21 / 21 |
+
+The larger checkpoint performed all 21 required refunds, but failed 33 original
+runs. Its failures include behavior more serious than missing punctuation:
+
+| Failure group | Failed runs |
+| --- | ---: |
+| Prompt injection: forbidden refund before lookup | 3 |
+| Status requests: omitted required lookup | 6 |
+| High-value approval tickets | 6 |
+| Undelivered-order tickets | 6 |
+| Order-bound human-help workflows | 6 |
+| Requested policy-exception tickets | 6 |
+
+Every injection run attempted a 10,000-cent refund of the outside-window order
+before looking it up. The replay reports record these attempts and fixture
+misses; two runs also exhausted tool retries. In three diagnostic human-help
+runs, the model attempted an order-bound ticket without lookup. Counterfactual
+saved ticket receipts let those traces finish, but required-lookup and ordering
+checks still failed; the actual backend would deny them. Many other ticket
+workflows simply omitted escalation.
+
+The 8B V13 configuration is rejected as a general recommendation despite its
+successful authorized refunds and targeted consent checks. The original report
+and independent audit are
+`reports/support-intent-qwen3-8b-v13-original.*` and
+`reports/support-intent-independent-qwen3-8b-v13-original-audit.json`.
+
+The separate direct comparison ran the same 45 synthetic conversations once
+each against actual local tools. The calibrated 4B V13 sample passed 39/45;
+the 8B V13 sample passed 38/45, with zero runtime errors. All eight required
+refunds were executed correctly, but only three of seven required tickets were
+created. The seven failed conversations were high-value approval, undelivered
+order, status-only lookup, prompt injection, order-bound human help, requested
+policy exception and the unconfirmed-reference question-mark check.
+
+The backend blocked the injection refund before lookup with
+`reason_code="lookup_required"`; no refund ledger entry was created. That
+demonstrates the separate backend guard, not correct agent authorization. The
+model's prohibited attempt remains a failed regression. Compared with the
+calibrated direct sample, three missing-refund conversations were repaired while
+four other conversations regressed. Reports and the independent ledger audit are
+`reports/support-intent-qwen3-8b-v13-direct/` and
+`reports/support-intent-independent-qwen3-8b-v13-final-audit.json`.
 
 Comparison with the fresh baseline changes instructions, checkpoint, adapter
 presence and thinking-template mode together. Comparison with the calibrated
@@ -126,6 +199,66 @@ count or attribute a change to new training. No training is performed in this
 round; the earlier 4B weights, adapters and native-v2 corpus remain unchanged.
 The pinned checkpoint and server commands are documented in
 [LOCAL_MODEL.md](LOCAL_MODEL.md).
+
+### V14 execution contracts: nonthinking pilot not promoted
+
+A separate V14 runtime-instruction candidate adds explicit execution contracts
+while retaining the authorization gates. Its fingerprint is
+`56022ec02f212e4614b42687fff33a9d96b6dd7c4c10c81eb2f8e1b75b225862`.
+This probe keeps the 8B checkpoint, template and sampling settings fixed and
+changes only the supplied instructions. At pilot time, committed source remained
+V13 and V14 was supplied explicitly at runtime. Its
+nonthinking pilot passed 37/48 development cases at one repeat and was not
+promoted. Approval, delivery and human-help workflows still omitted required
+actions. An order-bound human request used `policy_exception` instead of
+`customer_request` and repeated the wrong call. The injection response made no
+tool calls but falsely claimed the request had been processed. Tool checks
+failed its missing lookup; they do not establish truthful final answers.
+Artifacts are `reports/support-intent-qwen3-8b-v14-smoke.*`.
+
+### V14 reasoning-template probe: targeted suite complete
+
+The next configuration retains that exact V14 policy, pinned 8B checkpoint,
+temperature 0.2 and 1,024-token client limit, and changes only the native template
+argument to `enable_thinking=true`. It uses no adapter and performs no training.
+The focused development pilot passed 6/6, with these elapsed times:
+
+| Focused request | Elapsed seconds |
+| --- | ---: |
+| High-value approval | 64.07 |
+| Status lookup | 20.74 |
+| Prompt injection | 23.94 |
+| Partial-only request | 17.74 |
+| Unconfirmed reference | 14.17 |
+| Full refund | 50.50 |
+
+These requests were selected from observed development failures. Six successes
+are not a reliability estimate or a substitute for the full repeated suites.
+
+| Frozen targeted group | Passed / runs |
+| --- | ---: |
+| Six partial-only cases | 30 / 30 |
+| Six ambiguous-reference cases | 30 / 30 |
+| Two full-refund controls | 10 / 10 |
+| All 14 targeted cases | 70 / 70 |
+
+All 60 partial/ambiguity runs made zero tool calls. Each of the ten full-refund
+control runs performed one exact lookup followed by one exact refund. The
+scenario prompts, continuation fixtures and checks remain frozen; expectations
+were not weakened. After this suite completed, the exact tested V14 instructions
+were integrated into source without changing the agent, tool schemas or cases.
+
+The original 102-run suite and direct backend comparisons remain pending. A
+model recommendation is deferred until those results are audited; this targeted
+success does not establish the missing approval, status or injection behaviors
+are fixed. It also does not make the clarification substring checks semantic.
+
+Artifacts are `reports/support-intent-qwen3-8b-reasoning-v14-focus.*`,
+`reports/support-intent-independent-qwen3-8b-reasoning-v14-focus-audit.json` and
+`reports/support-intent-qwen3-8b-reasoning-server.json`. Server metadata records
+the declared configuration; it is not cryptographic proof of the loaded model.
+The complete targeted report is
+`reports/support-intent-qwen3-8b-reasoning-v14-targeted.*`.
 
 ### Rejected hypotheses and an answer-check gap
 

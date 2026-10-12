@@ -111,7 +111,11 @@ local server.
 
 ## Evaluate the separate 8B capacity candidate
 
-The larger checkpoint is a candidate pending evaluation. It uses the public
+The larger checkpoint is an experimental candidate. Its V13 comparison was
+rejected as a general recommendation: it completed required refunds but
+attempted prohibited refunds under prompt injection and omitted other required
+tools. Preserve these failures when comparing another policy; see
+[EVALUATION.md](EVALUATION.md). It uses the public
 [MLX-community Qwen3-8B 4-bit model](https://huggingface.co/mlx-community/Qwen3-8B-4bit/tree/545dc4251c05440727734bcd94334791f6ab0192)
 at revision `545dc4251c05440727734bcd94334791f6ab0192`, with Apache 2.0 licensing
 and 4,623,784,971 repository bytes. Its pretraining was performed upstream; this
@@ -148,8 +152,8 @@ HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 \
 ```
 
 This server uses the 8B checkpoint directly, without a 4B adapter. The client
-still uses `default_model` and the same loopback URL. The comparison holds the
-reviewed scenarios, agent code and frozen V13 policy constant
+still uses `default_model` and the same loopback URL. The original capacity
+comparison held the reviewed scenarios, agent code and frozen V13 policy constant
 (`0fab47536f46ae6426253cd2317cf3ab842090063326241325b4db76d0ce6070`).
 Checkpoint size and native thinking-template mode change together, so the result
 cannot isolate parameter count as the sole cause. Relative to the calibrated
@@ -173,6 +177,34 @@ Use fresh report paths for the two development suites:
 These commands test 70 targeted runs and 102 original/diagnostic runs,
 respectively. Read [EVALUATION.md](EVALUATION.md) for measured results and any
 remaining valid-action failures before choosing a model for the demonstration.
+
+### Optional reasoning-template experiment
+
+A separate experiment restarts the same 8B checkpoint with native thinking
+enabled. It uses the same temperature, token limit, concurrency and cache:
+
+```sh
+HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 \
+  .venv-model/bin/python -m mlx_lm server \
+  --model .models/qwen3-8b-4bit \
+  --host 127.0.0.1 --port 8080 \
+  --max-tokens 1024 --temp 0.2 \
+  --decode-concurrency 1 --prompt-concurrency 1 \
+  --prompt-cache-size 8 \
+  --chat-template-args '{"enable_thinking":true}'
+```
+
+This is an experiment, with no recommendation yet. Its focused six-case pilot
+passed, but took about 14–64 seconds per request. The full targeted suite passed
+70/70, including zero tools in all 60 partial/ambiguity runs and correct refunds
+in all ten controls. The original repeated suite and direct backend audit remain
+pending. Current source contains the exact tested V14 instructions with fingerprint
+`56022ec02f212e4614b42687fff33a9d96b6dd7c4c10c81eb2f8e1b75b225862`.
+The same V14 policy with
+thinking disabled passed only 37/48 pilot cases and retained missing actions,
+an incorrect escalation reason and a false processed-request claim.
+See [EVALUATION.md](EVALUATION.md) for the separate failed and pending evidence.
+No weights or training inputs are changed by either server command.
 
 ## Run actual local tools
 

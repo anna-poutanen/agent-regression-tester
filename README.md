@@ -63,8 +63,10 @@ calibration restored some refunds but still failed 29 of 102 development runs.
 The current authorization policy and [14 targeted cases](docs/support/TARGETED.md)
 distinguish partial consent and uncertain order references from valid full-refund
 requests. The [evaluation evidence](docs/support/EVALUATION.md) preserves measured
-before/after results and rejected prompt revisions. Offline demos are deterministic;
-their passing results do not establish real-model reliability.
+before/after results and rejected prompt revisions. The revised policy with the local 8B model in reasoning mode passed all 70 targeted
+development runs, including ten valid-refund controls. Broader workflows are still
+under evaluation. Offline demos are deterministic; their passing results do not
+establish real-model reliability.
 
 ## Record → review → replay
 

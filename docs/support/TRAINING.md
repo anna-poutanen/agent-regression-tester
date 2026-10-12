@@ -80,15 +80,24 @@ training experiment; they were not run as part of the prompt revision.
 
 The wrapper defaults remain 150 updates and a 4096-token maximum sequence length.
 The proposed v3 commands use 384 updates and retain the 4096-token limit.
-A tokenizer-only audit of the current instruction fingerprint
+A tokenizer-only audit of the now-current V14 instruction fingerprint
+`56022ec02f212e4614b42687fff33a9d96b6dd7c4c10c81eb2f8e1b75b225862`
+rendered the same 480 expert records at 2454–2713 training tokens,
+2453–2703 validation tokens and 2454–2702 test tokens. All exceed 2048; none
+exceed 4096. The 21–62 supervised target tokens remain nonempty, with zero
+masked-prefix or rendered-token mismatches. At measurement time V14 was patched
+only in memory and checked-in instructions were still V13; the exact candidate
+was subsequently integrated. This audit exported no corpus and loaded no model.
+Its report is `reports/support-intent-v14-training-token-audit.json`. It confirms
+a future 4B training window only, not native serialization or training parity for
+the 8B thinking-template experiment.
+
+The earlier V13 fingerprint
 `0fab47536f46ae6426253cd2317cf3ab842090063326241325b4db76d0ce6070`
-rendered freshly generated v3 records at 2213–2472 training tokens,
-2212–2462 validation tokens and 2213–2461 test tokens. All 480 records exceed
-2048; none exceed 4096. The 21–62 supervised target tokens remain nonempty and
-all masked prefixes match. This audit loaded only local tokenizer files and
-generated data in memory; it neither exported a corpus nor loaded or trained a
-model. Its report is `reports/support-intent-v13-training-token-audit.json`.
-It does not change the historical runs' 2048-token setting.
+measured 2212–2472 tokens in
+`reports/support-intent-v13-training-token-audit.json`. That is historical
+evidence. Neither audit changes the completed experiments' 2048-token setting or
+their frozen v2 inputs, and no v3 training has been performed.
 
 Preflight must rerun on the exact instructions used for any future experiment;
 historical v2 lengths and this fingerprinted audit do not guarantee that later
