@@ -11,7 +11,7 @@ eligibility, money and idempotency independently of the prompt.
 
 The synthetic training generator supplies 384/48/48 train/validation/test decision
 records with disjoint identifiers, request keys and wording. Native-v2 export
-matches the live inference prompt strings and tokens across all 480 decisions.
+matches scripted expert inference prompt strings and tokens across all 480 decisions.
 Separate review
 re-executed all 210 conversations against the backend and checked exclusion of
 evaluation cases. Training uses a local LoRA adapter with frozen Qwen base weights;
@@ -21,23 +21,44 @@ and optional dependencies. No real customer data or paid model API is involved.
 Real-model evaluation already exposed missing actions and guessed orders. The
 initial model passed 14/22 runs; a revised prompt passed 45/66. The first paired
 comparison passed 60/102 with the base and 54/102 with the initial adapter:
-lower training loss did not establish better behavior. These are historical
-development results, not a production benchmark. See [evaluation evidence](support/EVALUATION.md)
+lower training loss did not establish better behavior. The second native-format
+comparison passed 57/102 with its matched base and 72/102 with the adapter, but
+the adapter attempted zero refunds and failed all 21 refund-required runs.
+Reducing inference scale from 20 to 5, with unchanged trained weights, passed
+73/102 overall and 13/21 refund-required runs. Ambiguity, missed actions and intent
+violations remain. These are synthetic development results, not a production
+benchmark. See [evaluation evidence](support/EVALUATION.md)
 for experiment configuration, comparison results and limits.
 
 Current source validation passes on macOS:
 
-- **Python 3.13.2 and 3.11.14, core environment:** 669 tests pass on each version;
+- **Python 3.13.2 and 3.11.14, core environment:** 705 tests pass on each version;
   seven optional transport/tokenizer checks skip without model dependencies.
-- **Python 3.13.2, local-model environment:** all 676 tests pass, including those
+- **Python 3.13.2, local-model environment:** all 712 tests pass, including those
   seven checks. These use mocked HTTP and local tokenizer files, not inference.
 - **Coverage:** 96% combined statement/branch coverage.
-- **Ruff:** all 63 Python files pass lint and formatting checks.
+- **Ruff:** all 66 Python files pass lint and formatting checks.
 - **Mypy:** strict checks pass for all 22 package source modules.
 - **Offline policy replay:** 66/66 runs pass; all eight intentionally broken
   behaviors fail their targeted checks.
+- **Actual model failure reproduction:** a separately reviewed partial-only case
+  catches the calibrated model's unwanted full refund in 3/3 runs. Safe offline
+  replay passes 3/3. The original failing recording stays unreviewed; the case is
+  excluded from historical 34-scenario scores.
+- **Direct calibrated model:** 12/17 basic ledger/sequence checks pass. Two
+  partial-only requests create full refunds; ambiguity and order-bound human help
+  also fail. A currency error in a basic passing reply confirms that tool checks
+  do not comprehensively grade final answers.
 - **Clean wheel installation:** 44/44 replay runs pass from outside the checkout;
-  bundled orders, diagnostic scenarios and corpus generation work without MLX.
+  bundled orders, diagnostic scenarios and native-v2 corpus generation work
+  without OpenAI or MLX installed. Eligible chat creates one 4,999-cent refund;
+  outside-window chat creates none.
+- **Installed user workflow:** record, suggest, review, validate and five-repeat
+  replay pass for eligible and ineligible requests. Unreviewed replay is rejected.
+  Wrong-ID, duplicate-action and ambiguous-request mutations each fail 3/3 with
+  matching terminal, JSON and JUnit results. Nineteen additional replays leave
+  the actual store and lookup audit unchanged with original methods patched to
+  raise if executed.
 - **Packaging:** wheel and sdist include source, seed, typing marker and guides.
   The sdist includes experiment scripts and tests. Weights, generated corpora,
   reports and virtual environments are excluded.

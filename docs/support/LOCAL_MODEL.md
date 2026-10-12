@@ -78,7 +78,7 @@ server and add its local adapter path when restarting:
 ```sh
 HF_HUB_OFFLINE=1 .venv-model/bin/python -m mlx_lm server \
   --model .models/qwen3-4b-instruct \
-  --adapter-path .models/support-lora \
+  --adapter-path .models/support-lora-calibrated \
   --host 127.0.0.1 --port 8080 \
   --max-tokens 1024 --temp 0.2 \
   --decode-concurrency 1 --prompt-concurrency 1 \
@@ -88,6 +88,12 @@ HF_HUB_OFFLINE=1 .venv-model/bin/python -m mlx_lm server \
 The base weights remain unchanged; the server applies the separately stored
 adapter. Use the same client alias and scenario checks to compare both runs.
 The ordinary support commands do not automatically train or load an adapter.
+The earlier `.models/support-lora` adapter and native-format
+`.models/support-lora-native` adapter are preserved. Both exposed behavioral
+regressions; the native adapter at its original scale made no eligible refunds.
+The path shown above uses those same native weights with inference scale reduced
+from 20 to 5. This calibration performs no additional training. It restored refund
+calls in validation probes but still made intent and formatting mistakes.
 See [TRAINING.md](TRAINING.md) for checkpoint creation and [EVALUATION.md](EVALUATION.md)
 for actual experiment status rather than assuming that the command implies a
 completed or successful fine-tuning run.

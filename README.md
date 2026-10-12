@@ -52,6 +52,13 @@ The backend checks customer ownership, completed lookup, eligibility, exact inte
 
 See the [support guide](docs/support/README.md), [synthetic dataset card](docs/support/DATASET.md), [local model setup](docs/support/LOCAL_MODEL.md), and [evaluation evidence](docs/support/EVALUATION.md). The local model instructions use a loopback inference server and require no paid API.
 
+The optional model experiment performed actual local LoRA training on separate
+synthetic expert decisions. It also exposed a training regression: an adapter
+stopped making refunds despite lower token loss. A calibrated adapter restores
+some refunds but still fails 29 of 102 development runs. The offline demo is
+deterministic; these real-model failures are preserved rather than hidden by its
+passing tests.
+
 ## Record → review → replay
 
 Record the harmless local support example:

@@ -135,8 +135,12 @@ separates deterministic testing from observed model reliability. Training remain
 optional; the tester's value is exposing behavioral regressions regardless of the
 model selected.
 
-Next product work should add more independent failures and unseen request wording,
-review final-answer claims, and improve realistic multi-turn coverage before
-external pilots. A successful synthetic model run cannot replace testing one
+Next product work should add an independently reviewed intent-by-policy-state
+matrix, including partial requests, negative authorization, historical partial
+refunds and human help for expired orders. Add receipt-backed final-answer checks
+and realistic multi-turn clarification before external pilots. Average training
+loss and an aggregate pass count both concealed a missing-refund regression in
+the completed local experiments; action-specific results must remain visible.
+A successful synthetic model run cannot replace testing one
 existing developer application when the project is ready for users. No outreach,
 publication or hosted deployment has occurred.

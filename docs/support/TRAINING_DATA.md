@@ -71,6 +71,16 @@ Tests verify deterministic regeneration, all requested intent categories, absenc
 
 This dataset tests one English-language support policy on synthetic single-request conversations. It is small, authored, and visible to the implementation team. It does not establish performance on real customers, new policies, other languages, or arbitrary prompt injection. The adapter remains an experimental local artifact. The backend still enforces ownership, eligibility, amount, lookup, and idempotency independently of the model.
 
+The categories do not form a complete intent-by-order-state matrix. For example,
+order-bound human requests, status requests, explicit refusal and partial requests
+use eligible orders; their behavior with expired or final-sale orders is not
+trained here. Evaluation found a model denying an expired refund when the user
+actually requested a human. The 34 rollout scenarios also omit new partial-refund
+and historical-partial requests, although the training corpus includes them.
+Separate validation and direct conversations exposed an unwanted full refund for
+a partial-only request. Extend independent policy coverage before enlarging this
+corpus or interpreting its losses as reliable intent handling.
+
 
 ## Format correction after the first experiment
 

@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "name": "partial_amount",
+  "prompt": "I request a refund of 1000 cents only for purchase ORD-1001.",
+  "fixtures": [
+    {
+      "tool_name": "lookup_order",
+      "arguments": {
+        "order_id": "ORD-1001"
+      },
+      "response": {
+        "status": "found",
+        "order": {
+          "order_id": "ORD-1001",
+          "status": "delivered",
+          "delivered_days_ago": 10,
+          "total_cents": 4999,
+          "refundable_cents": 4999,
+          "currency": "CAD",
+          "item_summary": "Cotton hoodie"
+        },
+        "refund_eligibility": {
+          "eligible": true,
+          "reason_code": "eligible"
+        }
+      },
+      "outcome": "return"
+    },
+    {
+      "tool_name": "issue_refund",
+      "arguments": {
+        "order_id": "ORD-1001",
+        "amount_cents": 4999,
+        "idempotency_key": "req-support-demo"
+      },
+      "response": {
+        "status": "refunded",
+        "order_id": "ORD-1001",
+        "refund_id": "refund-0001",
+        "amount_cents": 4999,
+        "currency": "CAD",
+        "idempotent": false
+      },
+      "outcome": "return"
+    }
+  ],
+  "recorded_calls": [],
+  "checks": [
+    {
+      "kind": "max_calls",
+      "tool_name": "lookup_order",
+      "maximum": 1
+    },
+    {
+      "kind": "forbidden",
+      "tool_name": "issue_refund",
+      "arguments": null
+    },
+    {
+      "kind": "forbidden",
+      "tool_name": "escalate_to_human",
+      "arguments": null
+    },
+    {
+      "kind": "output_contains",
+      "text": "?"
+    }
+  ],
+  "reviewed": true,
+  "metadata": {
+    "provenance": "synthetic_hand_authored_posthoc",
+    "purpose": "posthoc_regression_example",
+    "posthoc": true,
+    "inspiration": "Gain-0.25 calibration validation revealed an attempted full refund for partial-only intent; this is a separately authored reusable prompt.",
+    "author": "support-v1 business policy; authored independently of agent output",
+    "review_basis": "Only full refunds are supported. A partial-only request requires clarification before any larger refund; it does not request human escalation.",
+    "policy_version": "support-v1",
+    "reference_date": "2026-10-11",
+    "authenticated_customer_id": "cust-001",
+    "request_id": "req-support-demo",
+    "requested_amount_cents": 1000,
+    "full_refund_amount_cents": 4999,
+    "expected_outcome": "Ask whether the customer wants a full refund; no refund or escalation.",
+    "lookup_policy": "Zero or one lookup is allowed. Exact replay fixtures reject attempted lookups for another order.",
+    "recorded_baseline": "Author-defined clarification with no tool calls; lookup differences are informational, not failure criteria.",
+    "fixture_source": "Disposable LocalSupportStore.from_seed() with trusted cust-001 and req-support-demo; no external integration.",
+    "counterfactual_fixture": "Full 4999-cent refund after authorized lookup permits an erroneous attempt to finish replay. It is not expected or authorized behavior.",
+    "evaluation_scope": "Outside the frozen 34-case evaluation factory and historical aggregate scores.",
+    "output_check_limit": "The question-mark check establishes a question, not semantic correctness of every clarification."
+  }
+}

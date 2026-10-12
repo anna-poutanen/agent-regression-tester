@@ -67,19 +67,22 @@ offline regression tests do not install MLX.
   --iters 384 --max-seq-length 2048
 ```
 
-The default experiment uses 150 updates, batch size 1, the last eight model layers,
-rank 8 LoRA, learning rate 0.0001, prompt masking, gradient checkpointing, and a fixed
-seed. It evaluates validation loss at the start, every 50 updates, and the end.
-The maximum sequence length is 4096; actual measured lengths are recorded. This
-is a bounded exploratory run, not a claim that these settings are optimal.
+The wrapper defaults remain 150 updates and a 4096-token maximum sequence length.
+The displayed current native-v2 commands deliberately override those defaults
+with 384 updates and a 2048-token limit. Both experiments use batch size 1, the
+last eight model layers, rank 8 LoRA, learning rate 0.0001, prompt masking,
+gradient checkpointing and a fixed seed. Validation runs at the start, every
+50 updates and the end. These are bounded exploratory runs, not a claim that
+the settings are optimal.
 
 Each validation check samples 10 of the 48 validation records through NumPy's
 permutation order. Successive checks may therefore use different subsets. The
 fixed seed makes the run reproducible; it does not make those reported losses a
-paired comparison of identical records. We select the final step-150 adapter
-using the predetermined run length, rather than picking a checkpoint with the
-lowest loss from changing validation subsets. The independent fixed regression
-suite supplies the before/after behavioral comparison.
+paired comparison of identical records. The first experiment selected its
+final step-150 adapter; native-v2 selected its final step-384 adapter. Both run
+lengths were predetermined, rather than picking a checkpoint with the lowest
+loss from changing validation subsets. The independent fixed regression suite
+supplies the before/after behavioral comparison.
 
 The script explicitly seeds NumPy's batch sampler. MLX-LM's `train_model` seeds
 MLX for adapter initialization separately. This is required because the script
@@ -104,8 +107,10 @@ individual behavioral failure.
 
 The script requires existing project-local model and dataset paths. It sets
 offline Hugging Face/Transformers environment flags, does not trust remote code,
-and uses no hosted API or remote experiment logger. Existing adapter weights are
-preserved: select fresh `--adapter` and `--manifest` paths for another run.
+and uses no hosted API or remote experiment logger. Existing corpus files and
+adapter weights are preserved: when repeating these commands, choose fresh
+`--output`/`--data`, `--adapter` and `--manifest` paths. A prepare-only manifest
+can be reused to start its prepared run; completed artifacts cannot be overwritten.
 
 `reports/support-training.json` records dataset hashes and provenance, base-model
 revision and file hashes, runtime versions, hyperparameters, loss reports, elapsed
@@ -152,7 +157,7 @@ preserved; the low training loss did not translate into a better support workflo
 
 ## Separate native-format experiment
 
-A second experiment is being prepared with the same synthetic expert cases,
+The second experiment completed with the same synthetic expert cases,
 split identifiers, wording, policy and expected behavior. Its native-format
 corpus corrects tool metadata, object key order, tool-response JSON and prior
 assistant argument representation to match the actual live inference path.
@@ -172,10 +177,78 @@ is one pass through 384 decision records. It uses fresh paths:
 fixed run length, not by regression results or the changing validation subsets.
 The manifest records the explicit experiment label, actual corpus version,
 training-script hash and data hashes. This is a second bounded experiment;
-behavioral improvement remains an open question.
+its independent behavioral evaluation is separate from training completion.
 
 Native preflight found 1435–1694 training tokens, 1434–1684 validation tokens and
 21–62 supervised target tokens, with zero truncation at the 2048-token limit.
+
+The seeded native-v2 run completed all 384 updates. Its manifest records
+October 11, 2026, 8:32:33 pm to 10:20:03 pm in America/Toronto. The recorded
+wall-clock span is 6450.605 seconds (1 hour 47 minutes 30.6 seconds); the separate
+model-loading/training/save timer is 3772.703 seconds (1 hour 2 minutes
+52.7 seconds). Both measurements are preserved, with their different scopes
+and time sources; the report does not infer the cause of the remaining difference.
+
+Final reported training loss was 0.101811, averaging only the last four updates
+(381–384), because the run length is not a multiple of the 10-update reporting
+interval. Final sampled validation loss was 0.075271 at 383 completed updates,
+before update 384, using 10 of the 48 validation records. Peak MLX allocation
+was 4.355 GB. These losses do not establish better tool decisions.
+
+The selected final `.models/support-lora-native/adapters.safetensors` is
+14,692,068 bytes, with SHA256
+`6d8cc76a1e9d53c8156b0bdfa1db692f2b7534c33b32b22449ab6b69bf1f2e2f`.
+Its 112 tensors are finite, and all 56 LoRA B matrices contain nonzero trained
+values. Numbered checkpoints at updates 50, 100, 150, 200, 250, 300 and 350 are
+preserved in the same directory. MLX writes the final step-384 weights to
+`adapters.safetensors`, without a separate numbered step-384 file.
+
+Rehashing confirmed that the base model, first adapter and frozen native corpus
+remain unchanged. `reports/support-training-native.json` and
+`reports/support-training-native.log` contain the complete experiment record;
+`reports/support-training-native-artifact-check.json` contains the independent
+hash, tensor, timing and preservation checks. Its fixed paired evaluation passed
+72/102 runs versus 57/102 with the matching base, but made zero refund calls and
+failed all 21 refund-required runs. The aggregate improvement concealed a central
+workflow regression. [Evaluation evidence](EVALUATION.md) explains the traces and
+direct MLX diagnosis; low token loss did not establish correct action routing.
+
+## Inference-scale calibration
+
+We tested adapter gains 0.1, 0.25, 0.5 and 1.0 without modifying learned weights.
+The original scale is 20; gain 0.25 applies scale 5. The two exact training
+decision probes produced correct refund and high-value escalation calls only at
+gain 0.25. Gain 0.1 produced prose without calls, 0.5 produced malformed nested
+tool frames, and 1.0 routed the eligible refund to escalation. One validation
+refund prefix was also used for token-probability diagnostics during the sweep.
+
+Gain 0.25 was fixed before the complete validation decision audit. It passed
+45/48 decisions conditioned on saved expert histories, including all four refund
+and five escalation decisions. Failures remained: escalation before lookup for a
+bound human request, an incomplete lookup frame, and an unwanted full refund for
+a partial-only request. This audit is model selection and diagnosis, rather than
+an unseen full-conversation benchmark. Canonical agent fixtures were not used to
+select the gain. Full agent evaluation remains a separate check.
+
+The stdlib-only calibration helper copies only the final weights and adjusted
+configuration into a fresh directory. It hashes the source, destination and
+validation report, refuses existing outputs and symlinks, and labels the operation
+as configuration-only inference calibration with **no additional training**:
+
+```sh
+python3 scripts/calibrate_support_adapter.py \
+  --source .models/support-lora-native \
+  --output .models/support-lora-calibrated --gain 0.25 \
+  --manifest reports/support-calibration.json \
+  --validation-report reports/support-native-gain-diagnosis/validation-gain-0.25/results.json
+```
+
+These paths already exist on the development computer; choose fresh output and
+manifest paths when repeating the export. Both adapter weight files have SHA256
+`6d8cc76a1e9d53c8156b0bdfa1db692f2b7534c33b32b22449ab6b69bf1f2e2f`.
+The original adapter and all negative evaluation evidence stay unchanged. Use
+the calibrated directory with the local server's `--adapter-path`; inspect the
+matched rollout results in [EVALUATION.md](EVALUATION.md) before choosing it.
 
 ## Primary implementation references
 

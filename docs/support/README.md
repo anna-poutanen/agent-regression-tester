@@ -49,6 +49,13 @@ The [dataset](DATASET.md) contains 22 reviewed scenarios: eligible and ineligibl
 
 During replay, saved responses replace all business tools; none of the store methods execute. A model still performs real inference if `--base-url` is supplied. During `support chat`, the actual local store methods run. Integration tests verify both execution boundaries.
 
+The separately reviewed posthoc example below preserves a partial-only refund failure found during calibration validation. It requires a clarification question and forbids refunds and escalation, while permitting at most one lookup. Its saved full-refund response lets an erroneous attempt finish and fail the forbidden-action check. The local calibrated model failed all three repeated replays of this reviewed case. It is outside the frozen evaluation dataset and its historical scores.
+
+```sh
+agent-regression run examples/scenarios/support_extra/partial_amount.json \
+  --agent agent_regression.support:make_support_agent
+```
+
 ## Demonstrate broken behavior
 
 ```sh
