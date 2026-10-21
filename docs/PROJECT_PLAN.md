@@ -6,7 +6,12 @@ Build a Python package that turns one agent failure into a reviewed, reusable te
 
 Our initial users are ourselves: local, deterministic customer-support, document-search, and business-automation agents. These test fixtures validate the workflow and implementation; they do not prove market demand or real-model reliability. Future users are developers maintaining existing Pydantic AI agents with known tool-call failures.
 
-Everything in this build stays on this computer. Prepare CI configuration, but do not create a remote repository, publish a package, contact users, or call paid models. Use a virtual environment within the project. Keep project Git history independent of the parent personal-projects repository.
+The initial build was local-only. The user later authorized a private GitHub
+repository and source commits; CI now runs the offline suite there. Model
+weights, generated corpora, raw evaluation reports and all inference stay local.
+No package release, outreach or paid-model evaluation has been performed. Use a
+virtual environment within the project and keep project Git history independent
+of the parent personal-projects repository.
 
 ## Release acceptance criteria
 
@@ -143,4 +148,16 @@ loss and an aggregate pass count both concealed a missing-refund regression in
 the completed local experiments; action-specific results must remain visible.
 A successful synthetic model run cannot replace testing one
 existing developer application when the project is ready for users. No outreach,
-publication or hosted deployment has occurred.
+public package publication or hosted deployment has occurred.
+
+### Resumable-run milestone — October 21
+
+Durable checkpoints, cancellation/resume, short batch limits, optional pauses
+and incomplete reports are implemented. Validation uses mocked agents; it does
+not restart local inference. See [resumable runs](RESUMABLE_RUNS.md) and the
+current [build status](BUILD_STATUS.md) for the exact contracts and evidence.
+
+Next, make saved before/after report comparison a supported product feature,
+then support multi-turn clarification scenarios and receipt-based answer checks.
+The support agent's remaining model failures are already detected by the tester
+and remain useful regression cases for separately authorized model evaluation.

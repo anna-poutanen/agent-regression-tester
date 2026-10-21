@@ -1,3 +1,47 @@
+# Local build status — October 21, 2026
+
+## Short, resumable runs
+
+The package now supports durable per-iteration checkpoints, explicit resume,
+per-invocation run/time limits, and short sequential batches with optional pauses.
+Completed passes and failures are retained exactly; resume starts at the first
+iteration without a completed result. Configuration/scenario drift and concurrent
+writers are rejected. Atomic checkpoint writes keep the last committed prefix.
+The declared configuration ID remains the caller's responsibility for arbitrary
+application code, prompts and model servers.
+
+Incomplete terminal/JSON reports show completed, planned and remaining counts.
+JUnit adds an `IncompleteSuite` error marker. The CLI exits 3 for an incomplete
+bounded run and 130 for Ctrl+C; a complete failing run still exits 1. An actual
+subprocess signal test proves cancellation saves progress and resume does not
+repeat the completed iteration. A cooldown-cancellation test also verifies that
+earlier failures remain visible. The deadline boundary fix preserves a completed
+result even when the clock crosses the limit as the callback returns.
+
+Validation used only offline agents and blocked provider requests:
+
+- Python 3.13.2 and 3.11.14: **988 passed, 7 optional checks skipped** on each.
+- Ruff lint and formatting pass for **78 Python files**; strict mypy passes for
+  **24 source modules**.
+- Combined statement/branch coverage: **93%**. Coverage remains diagnostic;
+  interruption, identity, storage and failure-preservation behavior are tested.
+- Wheel and sdist build successfully. A clean installed wheel, invoked outside
+  the checkout, passes short-run/resume checks, refuses changed agent identity,
+  preserves earlier failed traces exactly, and returns the expected exit codes.
+- The safe installed demo resumes from 2/6 to 6/6 passes. The broken installed
+  demo retains its two saved failures and finishes with all three forbidden-refund
+  failures, with no duplicate scenario/iteration results.
+
+No model server, inference, training or weight download was started. The earlier
+real-model results below remain unchanged. Async cancellation cannot forcibly
+interrupt blocking synchronous callbacks or stop an independently managed server.
+
+See [resumable runs](RESUMABLE_RUNS.md) for commands, configuration identity,
+interruption semantics, and reporting details. Next product priorities are
+saved-report comparison, multi-turn clarification, and receipt-based answer checks.
+
+---
+
 # Local build status — October 12, 2026
 
 ## Partial-refund and ambiguity follow-up

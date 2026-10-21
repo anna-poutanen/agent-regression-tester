@@ -1,6 +1,7 @@
 """Reviewed tool-call regression testing for Pydantic AI."""
 
 from .adapter import record, scenario_from_messages
+from .checkpoint import CheckpointState, load_checkpoint
 from .checks import diff_traces, evaluate_checks
 from .runner import run_scenario, run_suite, run_suite_sync
 from .schema import (
@@ -29,6 +30,7 @@ __all__ = [
     "BeforeCheck",
     "Check",
     "CheckFailure",
+    "CheckpointState",
     "ForbiddenCall",
     "MaxCalls",
     "OutputContains",
@@ -42,6 +44,7 @@ __all__ = [
     "diff_traces",
     "evaluate_checks",
     "load_scenario",
+    "load_checkpoint",
     "record",
     "run_scenario",
     "run_suite",

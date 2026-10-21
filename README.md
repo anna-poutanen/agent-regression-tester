@@ -181,7 +181,30 @@ See the [scenario reference](docs/SCENARIO_FORMAT.md) for fields, matching rules
 
 ## Reports and CI
 
-The CLI returns 0 for passing runs, 1 for regressions/runtime failures, and 2 for usage or configuration errors. Reports include the complete trace and each failing iteration. Ten repeated runs produce a count such as “failed 3 of 10 runs”; scripted offline tests do not measure real-model variability.
+Long runs can save each completed iteration and resume later:
+
+```sh
+agent-regression run examples/scenarios/support \
+  --agent agent_regression.demo:make_support_agent --repeats 3 \
+  --checkpoint reports/demo.checkpoint.json --run-id support-demo-v1 --max-runs 2
+
+# Continue the same plan; completed failures are retained, not rerun.
+agent-regression run examples/scenarios/support \
+  --agent agent_regression.demo:make_support_agent --repeats 3 \
+  --checkpoint reports/demo.checkpoint.json --run-id support-demo-v1 --resume
+```
+
+The first command exits **3** for an incomplete suite. Optional invocation-time
+limits and batch pauses support shorter local sessions. Checkpointed runs are
+sequential; the configuration ID must change when the agent's prompt, model or
+code changes. See [resumable runs](docs/RESUMABLE_RUNS.md) for interruption,
+identity, reporting and cancellation semantics. These examples remain offline.
+
+The CLI returns 0 for complete passing runs, 1 for complete regressions/runtime
+failures, 2 for usage or configuration errors, 3 for an incomplete bounded run,
+and 130 for interruption. Reports include the complete trace and each failing
+iteration. Ten repeated runs produce a count such as “failed 3 of 10 runs”;
+scripted offline tests do not measure real-model variability.
 
 Run the reviewed example files:
 

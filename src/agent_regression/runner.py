@@ -5,8 +5,10 @@ from __future__ import annotations
 import asyncio
 import inspect
 import time
-from collections.abc import Callable, Iterable
-from typing import Any
+from collections.abc import Awaitable, Callable, Iterable
+from contextlib import nullcontext
+from pathlib import Path
+from typing import Any, Literal, TypeVar
 
 from pydantic_ai import Agent, capture_run_messages
 from pydantic_ai.usage import UsageLimits
@@ -23,6 +25,8 @@ from .adapter import (
 from .checks import diff_traces, evaluate_checks
 from .schema import CheckFailure, RunResult, Scenario, SuiteResult
 
+_AwaitedT = TypeVar("_AwaitedT")
+
 
 def _positive_count(value: int, name: str) -> None:
     if type(value) is not int or value < 1:
@@ -34,6 +38,63 @@ def _validate_timeout(timeout: float) -> None:
         raise ValueError("timeout must be a positive number of seconds")
     if not float("-inf") < timeout < float("inf"):
         raise ValueError("timeout must be finite")
+
+
+def _validate_control_options(
+    *,
+    checkpoint: str | Path | None,
+    resume: bool,
+    run_id: str | None,
+    max_runs: int | None,
+    max_seconds: float | None,
+    batch_size: int | None,
+    pause_seconds: float,
+    concurrency: int,
+) -> bool:
+    if type(resume) is not bool:
+        raise ValueError("resume must be a boolean")
+    if checkpoint is not None and (
+        not isinstance(checkpoint, (str, Path))
+        or isinstance(checkpoint, str)
+        and not checkpoint.strip()
+    ):
+        raise ValueError("checkpoint must be a nonblank path")
+    if resume and checkpoint is None:
+        raise ValueError("resume requires a checkpoint")
+    if checkpoint is not None:
+        if not isinstance(run_id, str) or not run_id.strip():
+            raise ValueError("checkpoint requires a nonblank run_id")
+    elif run_id is not None:
+        raise ValueError("run_id requires a checkpoint")
+    if max_runs is not None:
+        _positive_count(max_runs, "max_runs")
+    if batch_size is not None:
+        _positive_count(batch_size, "batch_size")
+    if max_seconds is not None:
+        try:
+            _validate_timeout(max_seconds)
+        except ValueError as exc:
+            raise ValueError("max_seconds must be a finite positive number") from exc
+    if (
+        isinstance(pause_seconds, bool)
+        or not isinstance(pause_seconds, (int, float))
+        or not 0 <= pause_seconds < float("inf")
+    ):
+        raise ValueError("pause_seconds must be a finite nonnegative number")
+    if pause_seconds > 0 and batch_size is None:
+        raise ValueError("pause_seconds requires batch_size")
+    controlled = (
+        checkpoint is not None
+        or resume
+        or run_id is not None
+        or max_runs is not None
+        or max_seconds is not None
+        or batch_size is not None
+        or pause_seconds != 0
+    )
+    if controlled and concurrency != 1:
+        raise ValueError("controlled execution requires concurrency=1")
+    return controlled
 
 
 async def run_scenario(
@@ -128,13 +189,37 @@ async def run_suite(
     model: Any = None,
     timeout: float = 30,  # noqa: ASYNC109 - public per-run budget uses asyncio.timeout
     allow_unreviewed: bool = False,
+    checkpoint: str | Path | None = None,
+    resume: bool = False,
+    run_id: str | None = None,
+    max_runs: int | None = None,
+    max_seconds: float | None = None,
+    batch_size: int | None = None,
+    pause_seconds: float = 0.0,
 ) -> SuiteResult:
     """Run scenarios in input/iteration order, with run-local fixture state.
 
     A zero-argument factory (sync or async) provides fresh application state for
     each run. Reusing an Agent is supported; its own dependencies and arbitrary
-    callback state remain the application's responsibility.
+    callback state remain the application's responsibility. Controlled execution
+    is serial, checkpoints every completed result, and returns an incomplete
+    suite on an invocation budget. Cancellation saves the completed prefix and
+    propagates; the interrupted run starts fresh on resume. ``run_id`` attests
+    to the caller's model, prompt, code, and dependency configuration.
     """
+    invocation_started = asyncio.get_running_loop().time()
+    controlled = _validate_control_options(
+        checkpoint=checkpoint,
+        resume=resume,
+        run_id=run_id,
+        max_runs=max_runs,
+        max_seconds=max_seconds,
+        batch_size=batch_size,
+        pause_seconds=pause_seconds,
+        concurrency=concurrency,
+    )
+    if type(allow_unreviewed) is not bool:
+        raise ValueError("allow_unreviewed must be a boolean")
     _positive_count(repeats, "repeats")
     _positive_count(concurrency, "concurrency")
     _validate_timeout(timeout)
@@ -148,6 +233,8 @@ async def run_suite(
     ]
     if not scenario_list:
         raise ValueError("Suite must contain at least one scenario")
+    if controlled and len({scenario.name for scenario in scenario_list}) != len(scenario_list):
+        raise ValueError("controlled execution requires unique scenario names")
     semaphore = asyncio.Semaphore(concurrency)
 
     async def run_one(scenario: Scenario, iteration: int) -> RunResult:
@@ -195,6 +282,97 @@ async def run_suite(
                     duration_seconds=time.monotonic() - started,
                 )
 
+    if controlled:
+        from .checkpoint import CheckpointStore, build_checkpoint
+
+        planned = len(scenario_list) * repeats
+        deadline = None if max_seconds is None else invocation_started + max_seconds
+        expected = (
+            build_checkpoint(
+                scenario_list,
+                run_id=run_id,
+                repeats=repeats,
+                timeout=timeout,
+                allow_unreviewed=allow_unreviewed,
+            )
+            if checkpoint is not None and run_id is not None
+            else None
+        )
+        context = CheckpointStore(checkpoint) if checkpoint is not None else nullcontext()
+        with context as store:
+            state = None
+            if store is not None and expected is not None:
+                state = store.load(expected) if resume else store.create(expected)
+            completed = [] if state is None else list(state.results)
+            new_runs = 0
+
+            def finish(
+                status: Literal["completed", "incomplete"], reason: str | None = None
+            ) -> SuiteResult:
+                # The completed prefix is the durable unit. No cancelled case is
+                # recorded as a failure or skipped during the next invocation.
+                suite = SuiteResult(
+                    results=list(completed),
+                    planned_runs=planned,
+                    status=status,
+                    stop_reason=reason,
+                )
+                if state is not None and store is not None:
+                    state.status = "incomplete"
+                    state.results = list(completed)
+                    state.stop_reason = reason
+                    state.status = status
+                    store.save(state)
+                return suite
+
+            def exhausted() -> bool:
+                return deadline is not None and asyncio.get_running_loop().time() >= deadline
+
+            async def bounded(awaitable: Awaitable[_AwaitedT]) -> _AwaitedT:
+                if deadline is None:
+                    return await awaitable
+                async with asyncio.timeout_at(deadline):
+                    return await awaitable
+
+            try:
+                if len(completed) == planned:
+                    return finish("completed")
+                # A resumed checkpoint becomes active before application callbacks.
+                if state is not None and resume:
+                    finish("incomplete")
+                for coordinate in range(len(completed), planned):
+                    if max_runs is not None and new_runs >= max_runs:
+                        return finish("incomplete", "max_runs")
+                    if exhausted():
+                        return finish("incomplete", "max_seconds")
+                    scenario = scenario_list[coordinate // repeats]
+                    iteration = coordinate % repeats + 1
+                    try:
+                        result = await bounded(run_one(scenario, iteration))
+                    except TimeoutError:
+                        return finish("incomplete", "max_seconds")
+                    completed.append(result)
+                    new_runs += 1
+                    if len(completed) == planned:
+                        return finish("completed")
+                    finish("incomplete")
+                    if max_runs is not None and new_runs >= max_runs:
+                        return finish("incomplete", "max_runs")
+                    if exhausted():
+                        return finish("incomplete", "max_seconds")
+                    if batch_size is not None and new_runs % batch_size == 0 and pause_seconds > 0:
+                        try:
+                            await bounded(asyncio.sleep(pause_seconds))
+                        except TimeoutError:
+                            return finish("incomplete", "max_seconds")
+                return finish("completed")
+            except (asyncio.CancelledError, KeyboardInterrupt):
+                finish("incomplete", "cancelled")
+                raise
+            except BaseException:
+                finish("incomplete", "error")
+                raise
+
     tasks = [
         asyncio.create_task(run_one(scenario, iteration))
         for scenario in scenario_list
@@ -220,6 +398,13 @@ def run_suite_sync(
     model: Any = None,
     timeout: float = 30,  # noqa: ASYNC109 - public per-run budget uses asyncio.timeout
     allow_unreviewed: bool = False,
+    checkpoint: str | Path | None = None,
+    resume: bool = False,
+    run_id: str | None = None,
+    max_runs: int | None = None,
+    max_seconds: float | None = None,
+    batch_size: int | None = None,
+    pause_seconds: float = 0.0,
 ) -> SuiteResult:
     """Sync convenience entry point; use run_suite inside an active event loop."""
     try:
@@ -235,6 +420,13 @@ def run_suite_sync(
                 model=model,
                 timeout=timeout,
                 allow_unreviewed=allow_unreviewed,
+                checkpoint=checkpoint,
+                resume=resume,
+                run_id=run_id,
+                max_runs=max_runs,
+                max_seconds=max_seconds,
+                batch_size=batch_size,
+                pause_seconds=pause_seconds,
             )
         )
     raise ValueError(

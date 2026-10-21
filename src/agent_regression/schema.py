@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import math
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any, Literal, Self
 
 from pydantic import (
     BaseModel,
@@ -13,6 +13,7 @@ from pydantic import (
     JsonValue,
     computed_field,
     field_validator,
+    model_validator,
 )
 
 
@@ -186,6 +187,24 @@ class RunResult(ArtifactModel):
 
 class SuiteResult(ArtifactModel):
     results: list[RunResult] = Field(default_factory=list)
+    planned_runs: int | None = Field(default=None, ge=0)
+    status: Literal["completed", "incomplete"] = "completed"
+    stop_reason: NonEmptyString | None = None
+
+    @model_validator(mode="after")
+    def consistent_progress(self) -> Self:
+        if self.planned_runs is not None:
+            if self.planned_runs < len(self.results):
+                raise ValueError("planned_runs cannot be smaller than the completed result count")
+            if self.status == "completed" and self.planned_runs != len(self.results):
+                raise ValueError("A completed suite must contain every planned result")
+        elif self.status == "incomplete":
+            raise ValueError("An incomplete suite requires planned_runs")
+        if self.status == "completed" and self.stop_reason is not None:
+            raise ValueError("A completed suite cannot have a stop_reason")
+        if self.stop_reason is not None and not self.stop_reason.strip():
+            raise ValueError("stop_reason must not be blank")
+        return self
 
     @computed_field  # type: ignore[prop-decorator]
     @property
@@ -201,3 +220,10 @@ class SuiteResult(ArtifactModel):
     @property
     def failed_runs(self) -> int:
         return self.total_runs - self.passed_runs
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def remaining_runs(self) -> int:
+        return (self.planned_runs if self.planned_runs is not None else self.total_runs) - len(
+            self.results
+        )

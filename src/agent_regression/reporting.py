@@ -37,8 +37,19 @@ def _failure_details(result: RunResult) -> list[str]:
 
 def render_terminal(suite: SuiteResult, console: Console | None = None) -> None:
     """Print outcomes grouped by scenario, including repeat failure frequency."""
+    suite = SuiteResult.model_validate(suite.model_dump(round_trip=True))
     console = console or Console()
+    incomplete = suite.status == "incomplete"
     if not suite.results:
+        if incomplete:
+            console.print(
+                f"INCOMPLETE: 0 of {suite.planned_runs} planned runs completed "
+                f"({suite.stop_reason or 'stopped'}).",
+                style="yellow",
+                markup=False,
+                highlight=False,
+            )
+            return
         console.print("No scenarios ran. An empty suite is not a passing test.", style="yellow")
         return
 
@@ -48,10 +59,11 @@ def render_terminal(suite: SuiteResult, console: Console | None = None) -> None:
 
     for name, results in grouped.items():
         failed = sum(not result.passed for result in results)
-        status = "FAIL" if failed else "PASS"
+        status = "FAIL" if failed else ("PARTIAL" if incomplete else "PASS")
+        completed = " completed" if incomplete else ""
         console.print(
-            f"{status}: {name} — failed {failed} of {len(results)} runs",
-            style="red" if failed else "green",
+            f"{status}: {name} — failed {failed} of {len(results)}{completed} runs",
+            style="red" if failed else ("yellow" if incomplete else "green"),
             markup=False,
             highlight=False,
         )
@@ -73,6 +85,16 @@ def render_terminal(suite: SuiteResult, console: Console | None = None) -> None:
                         highlight=False,
                     )
 
+    if incomplete:
+        console.print(
+            f"\nINCOMPLETE: {suite.total_runs} of {suite.planned_runs} planned runs completed: "
+            f"{suite.passed_runs} passed, {suite.failed_runs} failed; "
+            f"{suite.remaining_runs} remaining ({suite.stop_reason or 'stopped'}).",
+            style="red" if suite.failed_runs else "yellow",
+            markup=False,
+            highlight=False,
+        )
+        return
     console.print(
         f"\n{suite.total_runs} runs: {suite.passed_runs} passed, {suite.failed_runs} failed",
         style="red" if suite.failed_runs else "green",
@@ -83,6 +105,7 @@ def render_terminal(suite: SuiteResult, console: Console | None = None) -> None:
 
 def write_json_report(suite: SuiteResult, path: str | Path) -> None:
     """Write a stable JSON report containing every run and its complete trace."""
+    suite = SuiteResult.model_validate(suite.model_dump(round_trip=True))
     destination = Path(path)
     destination.parent.mkdir(parents=True, exist_ok=True)
     payload = {
@@ -90,6 +113,10 @@ def write_json_report(suite: SuiteResult, path: str | Path) -> None:
         "total_runs": suite.total_runs,
         "passed_runs": suite.passed_runs,
         "failed_runs": suite.failed_runs,
+        "status": suite.status,
+        "planned_runs": suite.planned_runs,
+        "remaining_runs": suite.remaining_runs,
+        "stop_reason": suite.stop_reason,
         "results": [result.model_dump(mode="json") for result in suite.results],
     }
     destination.write_text(
@@ -107,20 +134,47 @@ def _xml_text(value: str) -> str:
 
 
 def write_junit_report(suite: SuiteResult, path: str | Path) -> None:
-    """Write JUnit XML; an errored run counts as an error, not two failures."""
+    """Write JUnit XML, with an explicit error marker for an incomplete suite."""
+    suite = SuiteResult.model_validate(suite.model_dump(round_trip=True))
+    incomplete = suite.status == "incomplete"
     errors = sum(result.error is not None for result in suite.results)
     failures = sum(not result.passed and result.error is None for result in suite.results)
     root = ET.Element(
         "testsuite",
         {
             "name": "agent-regression",
-            "tests": str(suite.total_runs),
+            "tests": str(suite.total_runs + int(incomplete)),
             "failures": str(failures),
-            "errors": str(errors),
+            "errors": str(errors + int(incomplete)),
             "skipped": "0",
             "time": f"{sum(result.duration_seconds for result in suite.results):.6f}",
         },
     )
+    if incomplete:
+        properties = ET.SubElement(root, "properties")
+        for name, value in {
+            "status": suite.status,
+            "planned_runs": str(suite.planned_runs),
+            "completed_runs": str(suite.total_runs),
+            "remaining_runs": str(suite.remaining_runs),
+            "stop_reason": suite.stop_reason or "stopped",
+        }.items():
+            ET.SubElement(properties, "property", {"name": name, "value": _xml_text(value)})
+        marker = ET.SubElement(
+            root,
+            "testcase",
+            {"classname": "agent_regression.suite", "name": "__suite_incomplete__", "time": "0"},
+        )
+        problem = ET.SubElement(
+            marker,
+            "error",
+            {"type": "IncompleteSuite", "message": "Not all planned runs completed"},
+        )
+        problem.text = _xml_text(
+            f"{suite.total_runs} of {suite.planned_runs} planned runs completed; "
+            f"{suite.remaining_runs} remaining. Stop reason: {suite.stop_reason or 'stopped'}. "
+            "Pending runs have no result and are not passing tests."
+        )
     for result in suite.results:
         case = ET.SubElement(
             root,

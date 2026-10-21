@@ -6,10 +6,11 @@ import asyncio
 import importlib
 import inspect
 import json
+import math
 import os
 from collections.abc import Callable
 from pathlib import Path
-from typing import Annotated, Any, NoReturn
+from typing import TYPE_CHECKING, Annotated, Any, NoReturn
 
 import typer
 from pydantic_ai import Agent
@@ -22,6 +23,9 @@ from .schema import Scenario, SuiteResult
 from .storage import load_scenario, save_scenario
 from .suggest import suggest_checks
 from .support.cli import app as support_app
+
+if TYPE_CHECKING:
+    from .checkpoint import CheckpointState
 
 app = typer.Typer(
     help="Record, review, and replay Pydantic AI tool-call regression tests.",
@@ -61,7 +65,7 @@ def _instantiate(target: Any, specification: str) -> Agent[Any, Any]:
     return value
 
 
-def _load_agent_target(specification: str) -> AgentTarget:
+def _load_agent_target(specification: str, *, eager: bool = True) -> AgentTarget:
     """Import trusted local code, validating factories without an extra invocation."""
     module_name, separator, attribute_name = specification.partition(":")
     if not separator or not module_name or not attribute_name or ":" in attribute_name:
@@ -78,7 +82,7 @@ def _load_agent_target(specification: str) -> AgentTarget:
         return target
     if not callable(target):
         raise ValueError(f"Agent target {specification!r} is neither an Agent nor a factory")
-    first_agent: Agent[Any, Any] | None = _instantiate(target, specification)
+    first_agent: Agent[Any, Any] | None = _instantiate(target, specification) if eager else None
 
     def factory() -> Agent[Any, Any]:
         nonlocal first_agent
@@ -103,7 +107,7 @@ def _checks_json(scenario: Scenario) -> str:
     )
 
 
-def _read_scenarios(paths: list[Path], *, allow_unreviewed: bool) -> list[Scenario]:
+def _scenario_paths(paths: list[Path]) -> list[Path]:
     discovered: list[Path] = []
     for path in paths:
         if path.is_dir():
@@ -112,10 +116,14 @@ def _read_scenarios(paths: list[Path], *, allow_unreviewed: bool) -> list[Scenar
             discovered.append(path)
     if not discovered:
         raise ValueError("No scenario JSON files found")
+    return discovered
+
+
+def _read_scenarios(paths: list[Path], *, allow_unreviewed: bool) -> list[Scenario]:
     scenarios: list[Scenario] = []
     seen_paths: set[Path] = set()
     seen_names: set[str] = set()
-    for path in discovered:
+    for path in _scenario_paths(paths):
         resolved = path.resolve()
         if resolved in seen_paths:
             continue
@@ -130,6 +138,139 @@ def _read_scenarios(paths: list[Path], *, allow_unreviewed: bool) -> list[Scenar
         seen_names.add(scenario.name)
         scenarios.append(scenario)
     return scenarios
+
+
+def _paths_alias(left: Path, right: Path) -> bool:
+    if left.resolve() == right.resolve():
+        return True
+    return left.exists() and right.exists() and left.samefile(right)
+
+
+def _validate_run_paths(
+    paths: list[Path],
+    *,
+    checkpoint: Path | None,
+    json_report: Path | None,
+    junit_report: Path | None,
+) -> None:
+    """Keep generated artifacts from replacing scenarios, checkpoints, or locks."""
+    outputs = [path for path in (checkpoint, json_report, junit_report) if path is not None]
+    for directory in (path for path in paths if path.is_dir()):
+        for output in outputs:
+            if output.suffix == ".json" and output.resolve().is_relative_to(directory.resolve()):
+                raise ValueError(
+                    "Checkpoint and report JSON files must be outside scenario directories"
+                )
+    inputs = _scenario_paths(paths)
+    protected = [("scenario", path) for path in inputs]
+    if checkpoint is not None:
+        lock = checkpoint.with_name(checkpoint.name + ".lock")
+        if checkpoint.is_symlink() or lock.is_symlink():
+            raise ValueError("Checkpoint and checkpoint lock paths must not be symlinks")
+        for label, path in (("checkpoint", checkpoint), ("checkpoint lock", lock)):
+            if path.exists() and path.is_dir():
+                raise ValueError(f"{label.capitalize()} path is a directory: {path}")
+            for scenario_path in inputs:
+                if _paths_alias(path, scenario_path):
+                    raise ValueError(f"{label.capitalize()} path must not alias a scenario file")
+            protected.append((label, path))
+    if json_report is not None and junit_report is not None:
+        if _paths_alias(json_report, junit_report):
+            raise ValueError("JSON and JUnit report paths must differ")
+    for report in (json_report, junit_report):
+        if report is None:
+            continue
+        if report.exists() and report.is_dir():
+            raise ValueError(f"Report path is a directory: {report}")
+        for label, path in protected:
+            if _paths_alias(report, path):
+                raise ValueError(f"Report path must not alias a {label} file")
+
+
+def _controlled_options(
+    *,
+    checkpoint: Path | None,
+    resume: bool,
+    run_id: str | None,
+    max_runs: int | None,
+    max_seconds: float | None,
+    batch_size: int | None,
+    pause_seconds: float,
+    concurrency: int,
+    timeout: float,
+    agent: str,
+) -> dict[str, Any]:
+    if not math.isfinite(timeout) or timeout <= 0:
+        raise ValueError("--timeout must be finite and positive")
+    if resume and checkpoint is None:
+        raise ValueError("--resume requires --checkpoint and --run-id")
+    if checkpoint is not None and (run_id is None or not run_id.strip()):
+        raise ValueError("--checkpoint requires a nonblank --run-id")
+    if run_id is not None and checkpoint is None:
+        raise ValueError("--run-id requires --checkpoint")
+    if max_runs is not None and max_runs < 1:
+        raise ValueError("--max-runs must be positive")
+    if max_seconds is not None and (not math.isfinite(max_seconds) or max_seconds <= 0):
+        raise ValueError("--max-seconds must be finite and positive")
+    if batch_size is not None and batch_size < 1:
+        raise ValueError("--batch-size must be positive")
+    if not math.isfinite(pause_seconds) or pause_seconds < 0:
+        raise ValueError("--pause-seconds must be finite and nonnegative")
+    if pause_seconds > 0 and batch_size is None:
+        raise ValueError("--pause-seconds requires --batch-size")
+    controlled = (
+        checkpoint is not None
+        or resume
+        or run_id is not None
+        or max_runs is not None
+        or max_seconds is not None
+        or batch_size is not None
+        or pause_seconds != 0
+    )
+    if not controlled:
+        return {}
+    if concurrency != 1:
+        raise ValueError("Controlled runs require --concurrency 1")
+    identity = (
+        json.dumps({"user_run_id": run_id, "agent": agent}, sort_keys=True, separators=(",", ":"))
+        if run_id is not None
+        else None
+    )
+    return {
+        "checkpoint": checkpoint,
+        "resume": resume,
+        "run_id": identity,
+        "max_runs": max_runs,
+        "max_seconds": max_seconds,
+        "batch_size": batch_size,
+        "pause_seconds": pause_seconds,
+    }
+
+
+def _interrupted_report(
+    checkpoint: Path | None,
+    json_report: Path | None,
+    junit_report: Path | None,
+    *,
+    expected: CheckpointState | None = None,
+) -> None:
+    typer.echo("Interrupted.", err=True)
+    if checkpoint is None:
+        return
+    try:
+        from .checkpoint import load_checkpoint
+
+        if expected is None:
+            typer.echo("Checkpoint identity was not validated; no report was recovered.", err=True)
+            return
+        state = load_checkpoint(checkpoint, expected=expected)
+        suite = state.to_suite()
+        _report(suite, json_report, junit_report)
+        typer.echo(f"Checkpoint: {checkpoint}")
+        if suite.status == "incomplete":
+            typer.echo("Resume by rerunning this command with --resume.")
+    except Exception as exc:
+        typer.echo(f"Could not read or report a validated checkpoint: {exc}", err=True)
 
 
 def _report(
@@ -229,11 +370,61 @@ def run_command(
     junit_report: Annotated[
         Path | None, typer.Option(help="Write CI-compatible JUnit XML.")
     ] = None,
+    checkpoint: Annotated[
+        Path | None, typer.Option(help="Save completed runs atomically for later resume.")
+    ] = None,
+    resume: Annotated[bool, typer.Option("--resume", help="Resume a matching checkpoint.")] = False,
+    run_id: Annotated[
+        str | None,
+        typer.Option(help="Configuration identity required with --checkpoint; change after edits."),
+    ] = None,
+    max_runs: Annotated[
+        int | None, typer.Option(min=1, help="Maximum new completed runs in this invocation.")
+    ] = None,
+    max_seconds: Annotated[
+        float | None,
+        typer.Option(help="Execution deadline in seconds; cancellation is cooperative."),
+    ] = None,
+    batch_size: Annotated[
+        int | None,
+        typer.Option(min=1, help="Completed runs per batch; controlled runs are serial."),
+    ] = None,
+    pause_seconds: Annotated[
+        float, typer.Option(help="Pause between batches; requires --batch-size when positive.")
+    ] = 0.0,
 ) -> None:
     """Replay saved tool responses against the current local agent and model."""
+    expected_checkpoint = None
     try:
+        if checkpoint is not None:
+            checkpoint = checkpoint.expanduser()
+        controlled = _controlled_options(
+            checkpoint=checkpoint,
+            resume=resume,
+            run_id=run_id,
+            max_runs=max_runs,
+            max_seconds=max_seconds,
+            batch_size=batch_size,
+            pause_seconds=pause_seconds,
+            concurrency=concurrency,
+            timeout=timeout,
+            agent=agent,
+        )
+        _validate_run_paths(
+            paths, checkpoint=checkpoint, json_report=json_report, junit_report=junit_report
+        )
         scenarios = _read_scenarios(paths, allow_unreviewed=allow_unreviewed)
-        target = _load_agent_target(agent)
+        if checkpoint is not None:
+            from .checkpoint import build_checkpoint
+
+            expected_checkpoint = build_checkpoint(
+                scenarios,
+                run_id=controlled["run_id"],
+                repeats=repeats,
+                timeout=timeout,
+                allow_unreviewed=allow_unreviewed,
+            )
+        target = _load_agent_target(agent, eager=False) if controlled else _load_agent_target(agent)
         suite = run_suite_sync(
             target,
             scenarios,
@@ -241,10 +432,18 @@ def run_command(
             concurrency=concurrency,
             timeout=timeout,
             allow_unreviewed=allow_unreviewed,
+            **controlled,
         )
         _report(suite, json_report, junit_report)
+    except KeyboardInterrupt:
+        _interrupted_report(checkpoint, json_report, junit_report, expected=expected_checkpoint)
+        raise typer.Exit(code=130) from None
     except Exception as exc:
         _fail(str(exc))
+    if suite.status == "incomplete":
+        if checkpoint is not None:
+            typer.echo("Resume by rerunning this command with --resume.")
+        raise typer.Exit(code=3)
     if not suite.results:
         _fail("No scenarios ran")
     raise typer.Exit(code=1 if suite.failed_runs else 0)

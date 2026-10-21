@@ -43,3 +43,23 @@ Only business function-tool bodies are intercepted. Your configured model remain
 ## A run times out
 
 The runner bounds asynchronous runs and factories, and limits model requests to 20 and successful tool calls to 100. A blocking synchronous factory or model callback can block the event loop; use nonblocking code. Increase `--timeout` only when the longer operation is expected. Partial traces are reported where available.
+
+## A bounded run exits 3 even though every observed result passed
+
+The suite is incomplete: the run allowance or invocation deadline stopped it
+before every planned iteration had a completed result. Add `--checkpoint` and
+`--run-id` when starting a resumable run, then use the same command with
+`--resume` to continue. Saved failures are retained too. Incomplete JUnit reports
+include a suite-level error rather than reporting a passing partial suite.
+
+## Resume rejects the checkpoint
+
+Check the scenario contents/order, repeat count, timeout, review mode, runtime
+versions, agent target and declared configuration ID. A different agent
+configuration needs a new ID and checkpoint path. Limits and pauses may change
+on resume. Do not delete saved results to get a passing report.
+
+A `.lock` sidecar can remain after a run; the OS lock, rather than the file's
+existence, indicates an active writer. Concurrent writers are rejected. Keep
+checkpoint/report files outside recursively discovered scenario directories.
+See [resumable runs](RESUMABLE_RUNS.md) for examples and cancellation limits.
